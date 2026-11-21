@@ -9,8 +9,8 @@
 
 - **เวอร์ชันแผน:** `PLAN.md` v4.2 (D1–D19)
 - **git:** commit แรก `753a33a` บน `master` (ยังไม่มี remote) — data/, spike/raw/, spike/out/, design/, .env* ไม่อยู่ใน git
-- **TASKS.md:** `[x]` 14 ข้อ · `[~]` 49 ข้อ · `[ ]` 18 ข้อ (ตรวจเทียบ DoD แล้วเมื่อ 21 พ.ย.)
-- **Supabase (T0.2):** โปรเจกต์ `smaaunonziebjvfyfuje` (Tokyo) · คีย์อยู่ใน `.env` และ `apps/web/.env.local` (ไม่อยู่ใน git) · Python ต่อผ่าน **Session pooler** ได้แล้ว (host ตรง `db.*.supabase.co` มีแต่ IPv6 เครื่องนี้ต่อไม่ได้) · ฐานข้อมูลยังว่าง ยังไม่ได้ลง migrations
+- **TASKS.md:** `[x]` 18 ข้อ · `[~]` 46 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลังลง migrations 001–005)
+- **Supabase (T0.2):** โปรเจกต์ `smaaunonziebjvfyfuje` (Tokyo) · คีย์อยู่ใน `.env` และ `apps/web/.env.local` (ไม่อยู่ใน git) · Python ต่อผ่าน **Session pooler** ได้แล้ว (host ตรง `db.*.supabase.co` มีแต่ IPv6 เครื่องนี้ต่อไม่ได้) · **ลง migrations `001`–`005` แล้ว** (Postgres 17.12, schema `staging`/`dw`/`mart`/`ml`/`public`, `pg_trgm` v1.6, RLS ครบ 6 ตาราง `app_*`, seed `dim_location` 79 / `dim_date` 1,095)
 - **GitHub:** `https://github.com/amin462/job` (public, ยังว่าง) — ยังไม่ได้ตั้ง remote/push รอผู้ใช้สั่ง
 - **เทสต์ล่าสุด:** `pytest` scraper+import+skills+clean 90 passed (รวมเทสต์ N_h ใหม่ 4 ข้อ) · `test_ml.py` ผ่านเมื่อเช้า (ไม่ได้แก้ไฟล์ ML) · `vitest` 26/26 · `tsc --noEmit` ผ่าน · `npm run build` ผ่าน (26 route)
 - **การเก็บข้อมูลจริง (T1.8) กำลังรัน:** ผู้ใช้ยืนยัน T0.3 แล้ว (21 พ.ย.) — harvester ทั้งสองตัวรันแบบหน้าต่าง cmd ย่อไว้ ด้วย delay ≥ 5 วินาที
@@ -56,6 +56,12 @@
 ---
 
 ## 5. บันทึกงานที่ทำเสร็จแล้ว (Changelog)
+
+### 2026-11-21 (เย็น) — งานที่ 1: ลง migrations 001–005 บน Supabase จริง (T1.1, T3.1, T3.2, T6.1)
+- รัน `npx supabase db push --yes --db-url "$env:DATABASE_URL"` ผ่าน Session pooler ลง PostgreSQL 17.12 สำเร็จทั้ง 5 ไฟล์ (`001`–`005`) โดยไม่ต้องแก้ SQL
+- ตรวจด้วย `pipeline.check_db` และสคริปต์ Python: พบครบทั้ง 5 schemas (`staging`=4, `dw`=13, `mart`=13, `ml`=3, `public`=6), `pg_trgm` v1.6, `dim_location`=79 (`is_south14`=14), `dim_date`=1,095 (`2025-01-01`..`2027-12-31`), `dim_source`=`['jobthai','jobbkk']`, constraints/indexes ของ `fact_*` ครบ และเปิด RLS ครบทุกตาราง `app_*` (6/6)
+- คง `T3.5`, `T3.6`, `T3.8` เป็น `[~]` ไว้รอตรวจสิทธิ์ REST (งานที่ 2) และตรวจตัวเลขตรงกับ `dw` หลังโหลดข้อมูลจริง (งานที่ 5)
+- คืนรหัสงาน `**T#.#` ใน `TASKS.md` ที่ขาดหายจากการอัปเดตสถานะก่อนหน้าให้ครบทุกข้อ
 
 ### 2026-11-21 (บ่าย) — Supabase .env + N_h ของชั้นสุ่ม (T0.2, T1.7)
 - `.env`, `apps/web/.env.local`: ใส่ URL/publishable/secret key ของ Supabase (ตั้งชื่อเดิม `NEXT_PUBLIC_SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` ให้ด้วยเพราะโค้ดเรียกชื่อนั้น) · `DATABASE_URL` = Session pooler `aws-1-ap-northeast-1` · สุ่ม `ML_API_KEY` และรหัสบัญชีเดโม 4 บัญชีไว้ใน `.env`
