@@ -9,7 +9,7 @@
 
 - **เวอร์ชันแผน:** `PLAN.md` v4.2 (D1–D19)
 - **git:** commit แรก `753a33a` บน `master` (ยังไม่มี remote) — data/, spike/raw/, spike/out/, design/, .env* ไม่อยู่ใน git
-- **TASKS.md:** `[x]` 28 ข้อ · `[~]` 36 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลังปิดงาน `T0.1` clean-clone fixtures งานที่ 8)
+- **TASKS.md:** `[x]` 30 ข้อ · `[~]` 34 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลังบันทึกผล ML benchmark และ `mart.salary_prediction` ลง Supabase Postgres จริง: `T4.2`, `T4.6`)
 - **Supabase (T0.2):** โปรเจกต์ `smaaunonziebjvfyfuje` (Tokyo) · คีย์อยู่ใน `.env` และ `apps/web/.env.local` (ไม่อยู่ใน git) · Python ต่อผ่าน **Session pooler** ได้แล้ว (host ตรง `db.*.supabase.co` มีแต่ IPv6 เครื่องนี้ต่อไม่ได้) · **ลง migrations `001`–`005` แล้ว** (Postgres 17.12, schema `staging`/`dw`/`mart`/`ml`/`public`, `pg_trgm` v1.6, RLS ครบ 6 ตาราง `app_*`, seed `dim_location` 79 / `dim_date` 1,095)
 - **GitHub:** `https://github.com/amin462/job` (public, ยังว่าง) — ยังไม่ได้ตั้ง remote/push รอผู้ใช้สั่ง
 - **เทสต์ล่าสุด:** `pytest` scraper+import+skills+clean 90 passed (รวมเทสต์ N_h ใหม่ 4 ข้อ) · `test_ml.py` ผ่านเมื่อเช้า (ไม่ได้แก้ไฟล์ ML) · `vitest` 26/26 · `tsc --noEmit` ผ่าน · `npm run build` ผ่าน (26 route)
@@ -56,6 +56,19 @@
 ---
 
 ## 5. บันทึกงานที่ทำเสร็จแล้ว (Changelog)
+
+### 2026-11-21 (ค่ำ) — งานที่ 9 (ส่วนที่ 1): บันทึกผล ML Benchmark + `mart.salary_prediction` ลง Supabase Postgres จริง (T4.2, T4.6)
+- ปรับปรุง [pipeline/ml/export_model.py](../pipeline/ml/export_model.py):
+  - เพิ่ม `_load_dotenv()` ใน `main()` ให้โหลด `DATABASE_URL` จาก `.env` อัตโนมัติเหมือน `run_pipeline.py` / `import_sqlite.py`
+  - ปรับ `upsert_ml_to_postgres` ให้ลบ `ml.experiment` ของ `(task, dataset_version)` เดิมก่อนบันทึกใหม่ (`on delete cascade`) เพื่อความ idempotent และเปลี่ยนการเขียน `ml.model_result`, `ml.feature_importance`, `mart.salary_prediction` เป็น batch `unnest(...)` ใน 1 roundtrip ต่อตาราง
+  - แก้ `generate_ml_report_markdown` ให้อ่านรายชื่อ features จาก `feature_spec` จริงแทนข้อความตายตัว
+- ปรับ [apps/web/src/components/views/MlLabView.tsx](../apps/web/src/components/views/MlLabView.tsx) ให้คัดกรองแสดงผลจาก `experiment_id` ล่าสุดเมื่อ Postgres มีหลาย experiment และแปลงค่า numeric อย่างปลอดภัย
+- เพิ่ม unit test `test_upsert_ml_to_postgres_idempotent_batches` ใน [pipeline/tests/test_ml.py](../pipeline/tests/test_ml.py)
+- รัน `.venv\Scripts\python.exe -X utf8 -m pipeline.ml.export_model --input data/processed/clean_postings.csv --models-dir data/processed/ml_models_preview --out-dir data/processed --report docs/ml-report.md --merge-seed` (รันซ้ำตรวจ idempotent 3 รอบ):
+  - ชุดข้อมูลจริง 291 ประกาศ (`n_rows=102` มีเงินเดือน, `67` บริษัท, version `clean_postings_n102_a95df702`): Champion = `XGBoost` (`RMSE=9,083.5`, `MAE=6,002.6`, `MAPE=25.78%` เทียบ Baseline `10,834.8`, `beats_baseline=True`)
+  - Postgres จริง: `ml.experiment = 1`, `ml.model_result = 36`, `ml.feature_importance = 25`, `mart.salary_prediction = 748`, `mart.ml_leaderboard = 36`, `mart.ml_feature_importance = 25` (ไม่เพิ่มแถวซ้ำ)
+  - หมายเหตุเรื่องความเข้ากันได้: คง `models/salary_champion.joblib` (`n=70`) ไว้บน `HEAD` จนกว่างาน `enrich.py` + `features.py` (และ `COPY pipeline/etl/enrich.py` ใน [services/ml-api/Dockerfile](../services/ml-api/Dockerfile)) จะถูก commit พร้อมกัน หรือหลังเก็บข้อมูลครบเป้า `T1.8` แล้วค่อยรัน export ทับ `models/`
+- ทดสอบ: `pytest pipeline/tests/test_ml.py -q` ได้ `15 passed` · `apps/web` `npx vitest run` ได้ `6 files, 28 passed` · `npx tsc --noEmit` ผ่าน → ปิด **`T4.2`**, **`T4.6`** เป็น `[x]`
 
 ### 2026-11-21 (ค่ำ) — งานที่ 8: Clean-Clone Fixtures & Skip Guards (T0.1)
 - เพิ่ม synthetic fixtures ที่ตัดข้อความประกาศจริง (`description`/`qualifications`) และ PII ออกใน [pipeline/tests/fixtures/](../pipeline/tests/fixtures/) (`province_totals.csv`, `jobthai_listing_sample.html`, `jobthai_postings/job_900001..900021.html`, `jobbkk_job_sample.html`, `jobbkk_listing_sample.html`, `clean_postings_sample.csv`) และ [apps/web/src/__tests__/fixtures/seed_marts_sample.json](../apps/web/src/__tests__/fixtures/seed_marts_sample.json)

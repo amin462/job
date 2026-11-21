@@ -31,17 +31,38 @@ export function MlLabView({
 }) {
   const { locale } = useI18n();
 
+  const latestExperimentId = useMemo(() => {
+    const ids = leaderboard
+      .map((r) => (r.experiment_id !== undefined && r.experiment_id !== null ? Number(r.experiment_id) : NaN))
+      .filter((id) => Number.isFinite(id));
+    return ids.length > 0 ? Math.max(...ids) : null;
+  }, [leaderboard]);
+
+  const activeLeaderboard = useMemo(() => {
+    if (latestExperimentId === null) return leaderboard;
+    return leaderboard.filter(
+      (r) => r.experiment_id === undefined || r.experiment_id === null || Number(r.experiment_id) === latestExperimentId
+    );
+  }, [leaderboard, latestExperimentId]);
+
+  const activeFeatureImportance = useMemo(() => {
+    if (latestExperimentId === null) return featureImportance;
+    return featureImportance.filter(
+      (f) => f.experiment_id === undefined || f.experiment_id === null || Number(f.experiment_id) === latestExperimentId
+    );
+  }, [featureImportance, latestExperimentId]);
+
   const summaryRows = useMemo(
     () =>
-      leaderboard
-        .filter((r) => r.is_summary || r.fold === -1)
-        .sort((a, b) => a.rmse - b.rmse),
-    [leaderboard]
+      activeLeaderboard
+        .filter((r) => r.is_summary || Number(r.fold) === -1)
+        .sort((a, b) => Number(a.rmse) - Number(b.rmse)),
+    [activeLeaderboard]
   );
 
   const foldRows = useMemo(
-    () => leaderboard.filter((r) => !r.is_summary && r.fold >= 0),
-    [leaderboard]
+    () => activeLeaderboard.filter((r) => !r.is_summary && Number(r.fold) >= 0),
+    [activeLeaderboard]
   );
 
   const champion = useMemo(
@@ -71,10 +92,10 @@ export function MlLabView({
 
   const topFeatures = useMemo(
     () =>
-      [...featureImportance]
-        .sort((a, b) => b.importance - a.importance)
+      [...activeFeatureImportance]
+        .sort((a, b) => Number(b.importance) - Number(a.importance))
         .slice(0, 15),
-    [featureImportance]
+    [activeFeatureImportance]
   );
 
   useRegisterPageContext({

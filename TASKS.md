@@ -52,11 +52,11 @@
 ## Phase 4 — ML benchmark และ Champion (สัปดาห์ 9–11; เตรียม feature ตั้งแต่สัปดาห์ 6)
 - [~] **T4.0 (M)** ⟨v4.2, D19⟩ โครง `services/ml-api` (FastAPI: `/health`, `/predict`, `/predict/batch`, ตรวจ header `X-ML-Key`) ด้วยโมเดลจำลอง → deploy บน **Render free** (หรือเซิร์ฟเวอร์มหาวิทยาลัยถ้าได้ HTTPS) · DoD: เรียกจาก Vercel preview ได้, วัด cold start จริงบันทึกใน `docs/DEPLOY.md` · 0.5–1 วัน
 - [x] **T4.1 (M)** `features.py`: สร้างตาราง feature (ไม่มีเพศ/อายุ/ชื่อบริษัท) + test กัน leak · DoD: test ยืนยันคอลัมน์ต้องห้ามไม่อยู่ · รอ T3.4
-- [~] **T4.2 (M)** Baseline + Ridge + RandomForest ใน `benchmark.py` ด้วย GroupKFold(5, group=company) · DoD: ผลบันทึก `ml.model_result`
+- [x] **T4.2 (M)** Baseline + Ridge + RandomForest ใน `benchmark.py` ด้วย GroupKFold(5, group=company) · DoD: ผลบันทึก `ml.model_result`
 - [x] **T4.3 (M)** XGBoost, LightGBM, CatBoost + tuning แบบ **nested** (random search ≤ 20 รอบ ด้วย GroupKFold(3) ชั้นในบน train ของแต่ละ fold) ⟨v4.1, D15⟩ · DoD: ครบ 5 โมเดล + baseline, ผลราย fold, fold นอกไม่ถูกใช้เลือก hyperparameter
 - [x] **T4.4 (M)** เลือก champion + feature importance + residual quantile → ช่วงค่าคาด · DoD: รายงาน `docs/ml-report.md`
 - [x] **T4.5 (M)** ⟨v4.2⟩ `export_model.py`: บันทึก champion (`models/salary_champion.joblib` หรือไฟล์ native) + `feature_spec.json` → ml-api โหลดจริง; test ค่าคาดจาก API = Python ±1e-6 · DoD: test ผ่าน · รอ T4.0, T4.4
-- [~] **T4.6 (M)** `mart.salary_prediction` + `mart.ml_leaderboard` view
+- [x] **T4.6 (M)** `mart.salary_prediction` + `mart.ml_leaderboard` view
 - [x] **T4.7 (S)** วิเคราะห์ error ตามกลุ่มอาชีพ/ภาค + เขียนข้อจำกัด (selection bias)
 - [ ] **T4.8 (C)** SHAP beeswarm ของ champion
 

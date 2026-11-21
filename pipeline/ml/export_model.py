@@ -202,18 +202,46 @@ def merge_ml_into_seed_marts(ml_marts: Mapping[str, Any], seed_marts_path: Path 
     return target
 
 
+def _load_dotenv(env_path: Path | None = None) -> None:
+    """Load simple KEY=VALUE lines from .env without overriding existing env vars."""
+    path = env_path or (REPO_ROOT / ".env")
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        s = line.strip()
+        if not s or s.startswith("#") or "=" not in s:
+            continue
+        key, val = s.split("=", 1)
+        key = key.strip()
+        val = val.strip().strip('"').strip("'")
+        if key:
+            os.environ.setdefault(key, val)
+
+
 def upsert_ml_to_postgres(
     database_url: str,
     dataset_version: str,
     n_rows: int,
     ml_marts: Mapping[str, Any],
 ) -> dict[str, int]:
-    """Persist experiment, leaderboard results, feature importance & fallback predictions to Postgres."""
+    """Persist experiment, leaderboard results, feature importance & fallback predictions to Postgres.
+
+    Idempotent per `(task, dataset_version)`: replaces any previous experiment row for the same
+    dataset version (cascading `ml.model_result` and `ml.feature_importance`) and uses batch
+    `unnest(...)` writes for low roundtrip latency over pooled connections.
+    """
     import psycopg
 
     counts = {"experiment_id": 0, "model_results": 0, "feature_importance": 0, "salary_prediction": 0}
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
+            cur.execute(
+                """
+                delete from ml.experiment
+                where task = 'salary_regression' and dataset_version = %s
+                """,
+                (dataset_version,),
+            )
             cur.execute(
                 """
                 insert into ml.experiment (task, dataset_version, n_rows)
@@ -225,46 +253,63 @@ def upsert_ml_to_postgres(
             exp_id = int(cur.fetchone()[0])
             counts["experiment_id"] = exp_id
 
-            for row in ml_marts["ml_leaderboard"]:
+            lb_rows = list(ml_marts.get("ml_leaderboard") or [])
+            if lb_rows:
                 cur.execute(
                     """
                     insert into ml.model_result (
                       experiment_id, model_name, fold, r2, rmse, mae, mape, fit_seconds, params, is_champion
-                    ) values (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)
+                    )
+                    select * from unnest(
+                      %s::bigint[], %s::text[], %s::int[], %s::numeric[], %s::numeric[],
+                      %s::numeric[], %s::numeric[], %s::numeric[], %s::jsonb[], %s::boolean[]
+                    )
                     """,
                     (
-                        exp_id,
-                        row["model_name"],
-                        int(row["fold"]),
-                        row["r2"],
-                        row["rmse"],
-                        row["mae"],
-                        row["mape"],
-                        row["fit_seconds"],
-                        json.dumps(row.get("params") or {}, ensure_ascii=False),
-                        bool(row["is_champion"]),
+                        [exp_id] * len(lb_rows),
+                        [str(r["model_name"]) for r in lb_rows],
+                        [int(r["fold"]) for r in lb_rows],
+                        [float(r["r2"]) if r.get("r2") is not None else None for r in lb_rows],
+                        [float(r["rmse"]) if r.get("rmse") is not None else None for r in lb_rows],
+                        [float(r["mae"]) if r.get("mae") is not None else None for r in lb_rows],
+                        [float(r["mape"]) if r.get("mape") is not None else None for r in lb_rows],
+                        [float(r["fit_seconds"]) if r.get("fit_seconds") is not None else None for r in lb_rows],
+                        [json.dumps(r.get("params") or {}, ensure_ascii=False) for r in lb_rows],
+                        [bool(r["is_champion"]) for r in lb_rows],
                     ),
                 )
-                counts["model_results"] += 1
+                counts["model_results"] = len(lb_rows)
 
-            for fi in ml_marts["ml_feature_importance"]:
+            fi_rows = list(ml_marts.get("ml_feature_importance") or [])
+            if fi_rows:
                 cur.execute(
                     """
                     insert into ml.feature_importance (experiment_id, model_name, feature, importance)
-                    values (%s, %s, %s, %s)
+                    select * from unnest(%s::bigint[], %s::text[], %s::text[], %s::numeric[])
                     """,
-                    (exp_id, fi["model_name"], fi["feature"], fi["importance"]),
+                    (
+                        [exp_id] * len(fi_rows),
+                        [str(fi["model_name"]) for fi in fi_rows],
+                        [str(fi["feature"]) for fi in fi_rows],
+                        [float(fi["importance"]) for fi in fi_rows],
+                    ),
                 )
-                counts["feature_importance"] += 1
+                counts["feature_importance"] = len(fi_rows)
 
-            for pred in ml_marts["salary_prediction"]:
+            pred_rows = list(ml_marts.get("salary_prediction") or [])
+            if pred_rows:
                 cur.execute(
                     """
                     insert into mart.salary_prediction (
                       experiment_id, model_name, occupation_cluster, province_th, region,
                       experience_band, education_level, employment_type, skill_bundle,
                       pred_p25, pred_p50, pred_p75, mae_cv, mape_cv, n_train_support
-                    ) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    )
+                    select * from unnest(
+                      %s::bigint[], %s::text[], %s::text[], %s::text[], %s::text[],
+                      %s::text[], %s::text[], %s::text[], %s::text[],
+                      %s::numeric[], %s::numeric[], %s::numeric[], %s::numeric[], %s::numeric[], %s::int[]
+                    )
                     on conflict (occupation_cluster, province_th, experience_band, education_level, employment_type, skill_bundle)
                     do update set
                       experiment_id   = excluded.experiment_id,
@@ -279,24 +324,24 @@ def upsert_ml_to_postgres(
                       created_at      = now()
                     """,
                     (
-                        exp_id,
-                        pred["model_name"],
-                        pred["occupation_cluster"],
-                        pred["province_th"],
-                        pred["region"],
-                        pred["experience_band"],
-                        pred["education_level"],
-                        pred["employment_type"],
-                        pred["skill_bundle"],
-                        pred["pred_p25"],
-                        pred["pred_p50"],
-                        pred["pred_p75"],
-                        pred["mae_cv"],
-                        pred["mape_cv"],
-                        pred["n_train_support"],
+                        [exp_id] * len(pred_rows),
+                        [str(p["model_name"]) for p in pred_rows],
+                        [str(p["occupation_cluster"]) for p in pred_rows],
+                        [str(p["province_th"]) for p in pred_rows],
+                        [str(p["region"]) for p in pred_rows],
+                        [str(p["experience_band"]) for p in pred_rows],
+                        [str(p["education_level"]) for p in pred_rows],
+                        [str(p["employment_type"]) for p in pred_rows],
+                        [str(p["skill_bundle"]) for p in pred_rows],
+                        [float(p["pred_p25"]) for p in pred_rows],
+                        [float(p["pred_p50"]) for p in pred_rows],
+                        [float(p["pred_p75"]) for p in pred_rows],
+                        [float(p["mae_cv"]) if p.get("mae_cv") is not None else None for p in pred_rows],
+                        [float(p["mape_cv"]) if p.get("mape_cv") is not None else None for p in pred_rows],
+                        [int(p["n_train_support"]) for p in pred_rows],
                     ),
                 )
-                counts["salary_prediction"] += 1
+                counts["salary_prediction"] = len(pred_rows)
         conn.commit()
     return counts
 
@@ -328,7 +373,11 @@ def generate_ml_report_markdown(
         "## 1. การออกแบบการทดลองและความเป็นธรรมของโมเดล (Experimental Design & Fairness D6/D15)",
         "",
         "- **ตัวแปรเป้าหมาย (Target):** `log(salary_mid)` เฉพาะประกาศที่ `has_salary == True` และ `salary_mid ∈ [5,000, 500,000]` บาท/เดือน (รายงานผลกลับเป็นบาทด้วย `exp(pred)`)",
-        "- **ตัวแปรต้น (Features):** `occupation_cluster`, `province_th`, `region`, `experience_band`, `education_level`, `employment_type`, `industry`, `n_skills`, `education_rank`, `exp_years_mid`, และ multi-hot ทักษะยอดนิยม "
+        "- **ตัวแปรต้น (Features):** "
+        + ", ".join(f"`{col}`" for col in (feature_spec.get("categorical_features") or []))
+        + ", "
+        + ", ".join(f"`{col}`" for col in (feature_spec.get("numeric_features") or []))
+        + ", และ multi-hot ทักษะยอดนิยม "
         + f"(Top {len(feature_spec.get('skill_feature_names') or [])} ทักษะ รวม {len(feature_spec.get('feature_columns') or [])} คอลัมน์)",
         "- **การป้องกันอคติ (Fairness Guard D6):** **ไม่ใช้** `gender`, `mentions_gender`, `age`, `mentions_age`, `company`, `company_name`, และ `company_name_norm` เป็น feature ของโมเดลโดยเด็ดขาด",
         f"- **การแบ่งข้อมูลแบบ Nested Cross-Validation (D15):** Outer CV ใช้ `GroupKFold(n_splits={benchmark.n_outer_splits})` แบ่งตาม `company_name_norm` (ทับซ้อนระหว่าง train/val = 0 บริษัทในทุก fold) · Inner Hyperparameter Tuning ใช้ `GroupKFold(n_splits={benchmark.n_inner_splits})` เฉพาะภายใน outer train fold (`<= {benchmark.n_tuning_trials}` trials/model/fold) ทำให้ outer validation fold ไม่รั่วไหลเข้าสู่การเลือก hyperparameter",
@@ -586,6 +635,7 @@ def run_ml_pipeline(
 
 
 def main(argv: list[str] | None = None) -> int:
+    _load_dotenv()
     parser = argparse.ArgumentParser(description="Train ML salary benchmark, select Champion, and export artifacts.")
     parser.add_argument("--input", default=str(REPO_ROOT / "data" / "processed" / "clean_postings.csv"))
     parser.add_argument("--models-dir", default=str(REPO_ROOT / "models"))

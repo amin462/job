@@ -510,3 +510,90 @@ def test_real_exported_artifacts_and_ml_api_parity(monkeypatch: pytest.MonkeyPat
         assert abs(api_pred["p25"] - direct_pred["p25"]) <= 1e-6
         assert abs(api_pred["p50"] - direct_pred["p50"]) <= 1e-6
         assert abs(api_pred["p75"] - direct_pred["p75"]) <= 1e-6
+
+
+def test_upsert_ml_to_postgres_idempotent_batches(monkeypatch: pytest.MonkeyPatch):
+    """Verify upsert_ml_to_postgres replaces prior same-version experiment and uses batch unnest."""
+    from pipeline.ml.export_model import upsert_ml_to_postgres
+
+    executed: list[tuple[str, tuple[Any, ...]]] = []
+    committed = False
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def execute(self, sql: str, params=None):
+            executed.append((" ".join(sql.split()), params))
+
+        def fetchone(self):
+            return (42,)
+
+    class FakeConn:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def cursor(self):
+            return FakeCursor()
+
+        def commit(self):
+            nonlocal committed
+            committed = True
+
+    import psycopg
+
+    monkeypatch.setattr(psycopg, "connect", lambda url: FakeConn())
+
+    ml_marts = {
+        "ml_leaderboard": [
+            {
+                "model_name": "XGBoost",
+                "fold": -1,
+                "r2": 0.25,
+                "rmse": 9000.0,
+                "mae": 6000.0,
+                "mape": 25.0,
+                "fit_seconds": 1.2,
+                "params": {"max_depth": 4},
+                "is_champion": True,
+            }
+        ],
+        "ml_feature_importance": [
+            {"model_name": "XGBoost", "feature": "exp_years_mid", "importance": 0.4}
+        ],
+        "salary_prediction": [
+            {
+                "model_name": "XGBoost",
+                "occupation_cluster": "Data & Analytics",
+                "province_th": "กรุงเทพมหานคร",
+                "region": "กลาง",
+                "experience_band": "1-2 ปี",
+                "education_level": "ปริญญาตรี",
+                "employment_type": "FULL_TIME",
+                "skill_bundle": "typical",
+                "pred_p25": 22000,
+                "pred_p50": 28000,
+                "pred_p75": 35000,
+                "mae_cv": 6000.0,
+                "mape_cv": 25.0,
+                "n_train_support": 10,
+            }
+        ],
+    }
+    counts = upsert_ml_to_postgres("postgresql://mock", "clean_postings_n102_test", 102, ml_marts)
+    assert committed is True
+    assert counts == {
+        "experiment_id": 42,
+        "model_results": 1,
+        "feature_importance": 1,
+        "salary_prediction": 1,
+    }
+    sqls = [q for q, _ in executed]
+    assert any("delete from ml.experiment" in q for q in sqls)
+    assert sum("unnest(" in q for q in sqls) == 3
