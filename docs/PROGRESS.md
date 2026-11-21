@@ -9,7 +9,7 @@
 
 - **เวอร์ชันแผน:** `PLAN.md` v4.2 (D1–D19)
 - **git:** commit แรก `753a33a` บน `master` (ยังไม่มี remote) — data/, spike/raw/, spike/out/, design/, .env* ไม่อยู่ใน git
-- **TASKS.md:** `[x]` 18 ข้อ · `[~]` 46 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลังลง migrations 001–005)
+- **TASKS.md:** `[x]` 19 ข้อ · `[~]` 45 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลังทดสอบสิทธิ์/RLS งานที่ 2)
 - **Supabase (T0.2):** โปรเจกต์ `smaaunonziebjvfyfuje` (Tokyo) · คีย์อยู่ใน `.env` และ `apps/web/.env.local` (ไม่อยู่ใน git) · Python ต่อผ่าน **Session pooler** ได้แล้ว (host ตรง `db.*.supabase.co` มีแต่ IPv6 เครื่องนี้ต่อไม่ได้) · **ลง migrations `001`–`005` แล้ว** (Postgres 17.12, schema `staging`/`dw`/`mart`/`ml`/`public`, `pg_trgm` v1.6, RLS ครบ 6 ตาราง `app_*`, seed `dim_location` 79 / `dim_date` 1,095)
 - **GitHub:** `https://github.com/amin462/job` (public, ยังว่าง) — ยังไม่ได้ตั้ง remote/push รอผู้ใช้สั่ง
 - **เทสต์ล่าสุด:** `pytest` scraper+import+skills+clean 90 passed (รวมเทสต์ N_h ใหม่ 4 ข้อ) · `test_ml.py` ผ่านเมื่อเช้า (ไม่ได้แก้ไฟล์ ML) · `vitest` 26/26 · `tsc --noEmit` ผ่าน · `npm run build` ผ่าน (26 route)
@@ -24,7 +24,7 @@
 
 > **กติกาสำหรับ AI Agent:** ห้ามหยุดรอรายการด้านล่าง ให้ทำส่วนโค้ด/ร่างให้ครบแล้วเดินงานถัดไป
 
-- [~] **👤 T0.2:** สร้างโปรเจกต์ + ใส่คีย์ใน `.env` แล้ว (21 พ.ย.) · Python ต่อได้ · ยังไม่ได้ลองต่อจาก Next.js · **ผู้ใช้ต้องทำเพิ่ม:** Dashboard → Project Settings → Data API → Exposed schemas เพิ่ม `mart` (ไม่เปิด staging/dw/ml) และหา Gemini API key ใส่ `GEMINI_API_KEY` ใน `.env` + `apps/web/.env.local`
+- [~] **👤 T0.2 / T3.8:** สร้างโปรเจกต์ + ใส่คีย์ใน `.env` แล้ว (21 พ.ย.) · Python ต่อได้ · **ผลทดสอบ REST (21 พ.ย.):** REST ใช้ publishable key อ่าน `mart.public_summary` ได้ `HTTP 406 PGRST106` เพราะ `Exposed schemas` ยังมีแค่ `public, graphql_public` · **ผู้ใช้ต้องทำเพิ่ม:** Dashboard → Project Settings → Data API → Exposed schemas เพิ่ม `mart` (ห้ามเปิด `staging`, `dw`, `ml`) แล้วรัน `.venv\Scripts\python.exe -X utf8 -m pipeline.check_permissions` ซ้ำเพื่อปิด `T3.8` และหา Gemini API key ใส่ `GEMINI_API_KEY` ใน `.env` + `apps/web/.env.local`
 - [x] **👤 T0.3:** ผู้ใช้ยืนยันหนังสืออนุญาตแล้ว (21 พ.ย. 2569)
 - [ ] **👤 T0.4:** ตอบคำถามใน `PLAN.md §11` (จำนวนผู้จัดทำ, วันสอบจริง, เกณฑ์จำนวนกลุ่มตัวอย่างแบบสอบถาม)
 - [ ] **👤 T0.6:** ถาม IT มหาวิทยาลัยเรื่อง VM/HTTPS สำหรับ `services/ml-api` (ระหว่างรอใช้ Render Free)
@@ -56,6 +56,12 @@
 ---
 
 ## 5. บันทึกงานที่ทำเสร็จแล้ว (Changelog)
+
+### 2026-11-21 (เย็น) — งานที่ 2: ทดสอบสิทธิ์ REST และ RLS จริงบน Supabase (T3.8, T6.4)
+- สร้างสคริปต์อัตโนมัติ `pipeline/check_permissions.py` และรันตรวจเทียบสิทธิ์จริงกับ Supabase (`37/37 passed`):
+  - **Postgres privileges & `SET LOCAL ROLE anon`:** `anon`/`authenticated` ไม่มีสิทธิ์ `USAGE` บน `staging`/`dw`/`ml` และอ่าน `mart.pipeline_status`/`mart.dq_summary` ไม่ได้ (`42501`), แต่อ่าน `mart.public_summary` ได้
+  - **REST (publishable key):** `staging.job_posting_raw`, `dw.fact_job_posting`, `ml.experiment`, `mart.pipeline_status`, `mart.dq_summary` ถูกปฏิเสธ (`HTTP 406`), `public.app_profile` ถูกปฏิเสธ (`HTTP 401`), `rpc/get_admin_pipeline_status` ถูกปฏิเสธ (`HTTP 401`), `rpc/get_dim_skills` อ่านได้ (`HTTP 200`), ส่วน `mart.public_summary` คืน `HTTP 406 PGRST106` เพราะยังไม่ได้เปิด `mart` ใน Dashboard → Data API → Exposed schemas (บันทึกไว้ในหัวข้อ 2 👤 เพื่อรอผู้ใช้กดเปิด จึงคง `T3.8` เป็น `[~]`)
+  - **Live Auth + RLS (สร้าง user ทดสอบชั่วคราว 3 บัญชีด้วย secret key แล้วลบทิ้งทั้งหมดหลังจบ):** `handle_new_user` ตัด `role='admin'` จาก metadata เหลือ `student` · `PATCH`/`INSERT` เปลี่ยน `role='admin'` เองถูก RLS บล็อก (`HTTP 403`) · User B อ่าน `app_profile`/`app_user_skill` ของ User A ไม่ได้ (`[]`) · student เรียก admin RPC ถูกบล็อก (`403`) ขณะที่ admin เรียกได้ (`200`) → ปิด `T6.4` เป็น `[x]`
 
 ### 2026-11-21 (เย็น) — งานที่ 1: ลง migrations 001–005 บน Supabase จริง (T1.1, T3.1, T3.2, T6.1)
 - รัน `npx supabase db push --yes --db-url "$env:DATABASE_URL"` ผ่าน Session pooler ลง PostgreSQL 17.12 สำเร็จทั้ง 5 ไฟล์ (`001`–`005`) โดยไม่ต้องแก้ SQL
