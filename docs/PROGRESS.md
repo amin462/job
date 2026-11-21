@@ -9,7 +9,7 @@
 
 - **เวอร์ชันแผน:** `PLAN.md` v4.2 (D1–D19)
 - **git:** commit แรก `753a33a` บน `master` (ยังไม่มี remote) — data/, spike/raw/, spike/out/, design/, .env* ไม่อยู่ใน git
-- **TASKS.md:** `[x]` 25 ข้อ · `[~]` 39 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลังเชื่อม apps/web กับ Supabase จริง งานที่ 6)
+- **TASKS.md:** `[x]` 27 ข้อ · `[~]` 37 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลัง seed บัญชีเดโม 4 persona งานที่ 7)
 - **Supabase (T0.2):** โปรเจกต์ `smaaunonziebjvfyfuje` (Tokyo) · คีย์อยู่ใน `.env` และ `apps/web/.env.local` (ไม่อยู่ใน git) · Python ต่อผ่าน **Session pooler** ได้แล้ว (host ตรง `db.*.supabase.co` มีแต่ IPv6 เครื่องนี้ต่อไม่ได้) · **ลง migrations `001`–`005` แล้ว** (Postgres 17.12, schema `staging`/`dw`/`mart`/`ml`/`public`, `pg_trgm` v1.6, RLS ครบ 6 ตาราง `app_*`, seed `dim_location` 79 / `dim_date` 1,095)
 - **GitHub:** `https://github.com/amin462/job` (public, ยังว่าง) — ยังไม่ได้ตั้ง remote/push รอผู้ใช้สั่ง
 - **เทสต์ล่าสุด:** `pytest` scraper+import+skills+clean 90 passed (รวมเทสต์ N_h ใหม่ 4 ข้อ) · `test_ml.py` ผ่านเมื่อเช้า (ไม่ได้แก้ไฟล์ ML) · `vitest` 26/26 · `tsc --noEmit` ผ่าน · `npm run build` ผ่าน (26 route)
@@ -70,6 +70,11 @@
 - `pipeline/ml/features.py`: feature ใหม่ `seniority_level`, `employment_type_derived` (แทน `employment_type` ที่เป็น FULL_TIME ทุกแถว) · หน้า Salary ส่งสองค่านี้ได้ (ไม่ส่ง = ไม่ระบุ/full_time) · โมเดลที่ export ไว้เดิมยังใช้ได้ (spec เดิมไม่มีสอง column นี้)
 - เทสต์: `pytest pipeline/tests` 131 passed
 - ⚠️ **ถึง Gemini:** ประมาณ 15:52 harvester ทั้งสองตัวถูกปิดพร้อมกัน (ไม่มี log) — **ห้ามสั่งปิด python.exe ทั้งหมด** (`taskkill /IM python.exe` ฯลฯ) ให้ปิดเฉพาะ PID ของตัวเองถ้าจำเป็น
+
+### 2026-11-21 (เย็น) — งานที่ 7: สร้างและตรวจบัญชีเดโม 4 Persona ใน Supabase Auth (T6.2, T6.3)
+- สร้างสคริปต์ `pipeline/seed_demo_personas.py`: ใช้ `SUPABASE_SECRET_KEY` สร้าง/อัปเดตผู้ใช้ทั้ง 4 บัญชี (`DEMO_*_EMAIL`/`DEMO_*_PASSWORD` จาก `.env`) แล้วเรียก `public.attach_demo_persona` และทดสอบ login ด้วย password + อ่าน `app_profile`/`app_user_skill`/`app_curriculum` ภายใต้ RLS (ห้ามพิมพ์อีเมล/รหัสผ่าน/คีย์)
+- รัน `.venv\Scripts\python.exe -X utf8 -m pipeline.seed_demo_personas` 2 รอบติด (idempotent): `student_data (role=student, n_skills=4)`, `student_acc (role=student, n_skills=4)`, `institution (role=institution, n_curricula=1)`, `admin (role=admin)` ผ่านทั้งหมด
+- ซิงก์ `DEMO_*` (8 ตัวแปร) เข้า `apps/web/.env.local` (ไม่อยู่ใน git) และให้ `apps/web/src/app/api/demo/route.ts` ล้าง cookie เดโมเก่าเมื่อ sign-in ผ่าน Supabase สำเร็จ · `vitest` `28/28`, `tsc --noEmit` ผ่าน → ปิด `T6.2`, `T6.3` เป็น `[x]`
 
 ### 2026-11-21 (เย็น) — งานที่ 6: เชื่อม Next.js `apps/web` กับ Supabase จริง + fallback และตัวกรองความปลอดภัย (T0.2, T5.4)
 - ทดสอบเชื่อมจาก Node/Next.js ด้วย `apps/web/.env.local`: `get_dim_skills` (128), `get_dim_occupations` (18), `get_dim_locations` (80) อ่านจาก Supabase ได้จริง; ส่วน `mart.*` คืน `PGRST106` จนกว่าผู้ใช้จะกดเพิ่ม `mart` ใน Exposed schemas (fallback ไปยัง `data/processed/seed_marts.json` อัตโนมัติ)

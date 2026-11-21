@@ -83,8 +83,8 @@
 
 ## Phase 6 — Auth, RLS และเดโม (สัปดาห์ 5–8)
 - [x] **T6.1 (M)** Migration 005: ตาราง `app_*` + RLS + `is_admin()` (ARCH §3.6) + กันผู้ใช้ตั้ง role admin เอง (policy แยก insert/update ที่ with check role ∈ student/institution) ⟨v4.1⟩ · DoD: เปิด RLS ทุกตาราง
-- [~] **T6.2 (M)** Supabase Auth (email/password) + trigger สร้าง `app_profile` + onboarding · รอ T6.1
-- [~] **T6.3 (M)** seed persona 4 บัญชี + หลักสูตรตัวอย่าง + ปุ่มเดโมคลิกเดียว (server action) · DoD: เข้าได้ภายใน 1 คลิก
+- [x] **T6.2 (M)** Supabase Auth (email/password) + trigger สร้าง `app_profile` + onboarding · รอ T6.1
+- [x] **T6.3 (M)** seed persona 4 บัญชี + หลักสูตรตัวอย่าง + ปุ่มเดโมคลิกเดียว (server action) · DoD: เข้าได้ภายใน 1 คลิก
 - [x] **T6.4 (M)** ชุดทดสอบ RLS (user A/B, visitor, admin, **ผู้ใช้พยายามแก้ role เป็น admin** ⟨v4.1⟩, anon อ่าน `pipeline_status` ไม่ได้) อัตโนมัติ · DoD: ผลทุกกรณีตรงตามคาด
 
 ## Phase 7 — แชท Gemini (สัปดาห์ 11–12)

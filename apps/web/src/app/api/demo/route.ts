@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
           password: envCreds.password,
         });
         if (!error && data.user) {
-          return NextResponse.json({
+          const res = NextResponse.json({
             ok: true,
             mode: "supabase",
             redirectTo: spec.defaultRedirect,
@@ -42,6 +42,8 @@ export async function POST(request: NextRequest) {
               is_demo: true,
             },
           });
+          res.cookies.delete(DEMO_SESSION_COOKIE);
+          return res;
         }
       }
     } catch {
