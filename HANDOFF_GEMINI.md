@@ -1,44 +1,40 @@
-# Prompt สั่งให้ Gemini ลุยงานทั้งหมดต่อทันที (v4.2)
+# Prompt ส่งต่อให้ Gemini ทำงานต่อ (อัปเดต 21 พ.ย. 2569)
 
-> **วิธีใช้:** คัดลอกข้อความในกล่องด้านล่างทั้งหมดไปวางสั่ง Gemini ได้เลย (เอกสารหลักทุกไฟล์รวมถึง `AGENTS.md`, `GEMINI.md`, `INDEX.md`, `docs/DEPLOY.md`, `docs/PROGRESS.md` ถูกเตรียมไว้ในโปรเจกต์ครบแล้ว)
+> **วิธีใช้:** คัดลอกข้อความในกล่องด้านล่างไปวางสั่ง Gemini ได้เลย · prompt นี้ไม่มีคีย์หรือรหัสผ่าน (อยู่ใน `.env` ซึ่งไม่อยู่ใน git) — **ห้ามวางคีย์ลงในแชท Gemini**
 
 ---
 
 ```text
-คุณคือผู้ช่วยพัฒนาโครงงานจบ สาขาคอมพิวเตอร์ธุรกิจ (วิชาโครงงาน ไม่ใช่งานวิจัย) หัวข้อ E′ "Skill Demand Intelligence: ระบบวิเคราะห์ความต้องการทักษะในตลาดแรงงานไทยจากประกาศงาน ด้วยคลังข้อมูลและการเรียนรู้ของเครื่อง"
+คุณคือผู้ช่วยพัฒนาโครงงานจบ หัวข้อ E′ "Skill Demand Intelligence" ในโฟลเดอร์ D:\project-next\southbi (Windows, PowerShell) ตอบเป็นภาษาไทย กระชับ อ้างไฟล์ทุกครั้ง
 
-เอกสารสเปกทั้งหมดในโปรเจกต์ถูกล็อกเป็นเวอร์ชัน v4.2 (D1–D19) เรียบร้อยแล้ว ให้อ่านไฟล์ต่อไปนี้ก่อนเริ่มลงมือ:
-1. `INDEX.md` และ `AGENTS.md` (กติกาเหล็ก สภาพแวดล้อมเครื่อง Windows นี้ และขั้นตอนการทำงาน)
-2. `PLAN.md` (v4.2) และ `TASKS.md` (v4.2)
-3. `docs/PROGRESS.md` (สถานะล่าสุดและลำดับงานถัดไป)
-4. `ARCHITECTURE.md`, `CONTEXT.md`, `FRONTEND_SPEC.md`, `DESIGN_SYSTEM.md`, `docs/DEPLOY.md`
+## 1. อ่านก่อนเริ่ม (บังคับ)
+AGENTS.md (กติกาเหล็ก) → docs/PROGRESS.md (สถานะล่าสุด 21 พ.ย. + การตัดสินใจของผู้ใช้ หัวข้อ 3–4) → TASKS.md (`[x]` เสร็จ, `[~]` มีโค้ดแล้วแต่ DoD ยังไม่ครบ, `[ ]` ยังไม่ทำ) → PLAN.md → ARCHITECTURE.md §3
 
-### กติกาเหล็กที่ต้องยึดอย่างเคร่งครัด (D1–D19)
-- **ห้ามขยายขอบเขตเอง:** ไม่มีระบบสมัครงาน ใบสมัคร สรรหา สัมภาษณ์ บริษัทลงประกาศเอง ติดตามการเรียน หรือนำเข้าข้อความ résumé (D3, D18) ถ้าจะเสนอเปลี่ยนขอบเขตต้องถามและบอกผลกระทบต่อเวลาก่อน
-- **ToS & PDPA:** แหล่งหลักคือ JobThai (ห้ามใช้ JobTopGun, JobsDB, Indeed) · หน้าเว็บและ API สาธารณะต้องแสดงเฉพาะ **สถิติรวม (aggregate ที่ n >= 5) + ลิงก์ไปประกาศต้นฉบับ** ห้ามส่งหรือแสดงข้อความรายละเอียดประกาศซ้ำเด็ดขาด · ตัดข้อมูลผู้ติดต่อ HR (ชื่อ/โทร/อีเมล/LINE) ทิ้งตั้งแต่ขั้น parse · การ scrape ต้องทีละ 1 request เว้น ≥ 5 วินาที และหยุดทั้งรอบทันทีเมื่อเจอ 403/429/CAPTCHA ห้ามหลบเลี่ยง
-- **Data Warehouse & Sampling:** แยก schema `staging`, `dw`, `mart`, `ml`, `public` · เก็บ `staging.listing_seen` เพื่อคำนวณ `first_seen_date_key`, `last_seen_date_key` และ `sample_weight = N_h / n_h` (สุ่มแบ่งชั้นจังหวัด × หมวด ตามสัดส่วน + ขั้นต่ำชั้นละ 5) · ตารางแนวโน้มเป็นรายสัปดาห์ `mart.skill_demand_weekly` (ถ่วงน้ำหนัก) · หน้า Landing อ่าน `mart.public_summary` (ไม่อ่าน `mart.pipeline_status` ของ admin)
-- **RLS & Security:** เปิด RLS ทุกตารางใน `public` (`app_*`) · ใน `app_profile` ต้องแยก policy `insert`/`update` บังคับ `role in ('student','institution')` เพื่อไม่ให้ผู้ใช้ตั้งตัวเองเป็น `admin` ได้ · ปิด `staging`, `dw`, `ml` จาก `anon`/`authenticated`
-- **ML & Deploy ฟรี 2 ที่ + DB (D6, D15, D19):**
-  - **ห้ามใช้เพศ (`gender`), อายุ (`age`), และชื่อบริษัท เป็น feature ของ ML เด็ดขาด** (ใช้ `company_key` เป็น group ใน `GroupKFold(5)` เท่านั้น และต้องมี unit test ตรวจจับคอลัมน์ต้องห้าม)
-  - เทียบอย่างน้อย 5 โมเดล (Ridge, Random Forest, XGBoost, LightGBM, CatBoost) + Baseline ค่ามัธยฐาน โดยจูน hyperparameter แบบ **Nested CV** (`GroupKFold(3)` ชั้นในบนชุด train ของแต่ละ fold นอก)
-  - ในระบบจริงเสิร์ฟเฉพาะ **โมเดล Champion ตัวเดียว** ผ่าน FastAPI `services/ml-api` (`/health`, `/predict`, `/predict/batch` ตรวจ header `X-ML-Key`) สำหรับ deploy บน **Render Free** หรือ **เซิร์ฟเวอร์มหาวิทยาลัย** (ไม่ใช้ ONNX และไม่ใช้ Railway) โดยมี `/api/salary/estimate` บน Vercel เป็น proxy (timeout 8 วินาที + ปลุก `/health` ตอนเปิดหน้า + fallback ไปตาราง `mart.salary_prediction`)
-- **AI & Taxonomy (D7, D8, D18):**
-  - ดึงทักษะด้วย dictionary + alias ไทย/อังกฤษ + PyThaiNLP `newmm` (อ้างอิงชื่อมาตรฐาน O*NET/ESCO)
-  - คิว alias pending ในหน้า admin เสนอทักษะที่คล้ายด้วยกฎ `pg_trgm similarity` เท่านั้น **ห้ามใช้ LLM ดึงทักษะ เสนอ alias หรือติด label ชุดตรวจมือ 200 ประกาศ**
-  - Gemini ใช้เฉพาะเป็นไอคอนแชทลอย (`POST /api/chat`) ตอบจาก `pageContext` ของหน้าปัจจุบันเท่านั้น ห้ามทำ Text-to-SQL และห้ามแต่งตัวเลขใหม่
-- **Frontend:** สไตล์ Liquid Glass ตาม `DESIGN_SYSTEM.md` (กระจกฝ้าเฉพาะการ์ด/แถบเมนู กราฟและข้อความอยู่บนพื้นทึบ contrast ≥ 4.5:1 มีโหมดทึบสำรอง) สี `#6C5CE7` / `#E0623F` / `#0E9AAE` ใช้ Apache ECharts
+## 2. สถานะที่ต้องรู้
+- git: branch master, commit แล้ว ยังไม่มี remote · ห้าม push ขึ้น GitHub เอง (repo เป็น public) ให้ถามผู้ใช้ก่อน
+- Python: ใช้ .venv\Scripts\python.exe -X utf8 (รันโมดูลในโปรเจกต์ด้วย -m จาก root ไม่ต้องใส่ -I) · เว็บ: apps/web (Next.js 16, npm run build / npx vitest run)
+- Supabase: คีย์อยู่ใน .env และ apps/web/.env.local แล้ว (ห้ามพิมพ์ค่าออกมา ห้าม commit) · DATABASE_URL เป็น Session pooler (host ตรง db.*.supabase.co ใช้ IPv6 เครื่องนี้ต่อไม่ได้ ห้ามเปลี่ยนกลับ) · publishable key ใช้แทน anon key, secret key ใช้แทน service_role · ฐานข้อมูลยังว่าง
+- การเก็บข้อมูล: ผู้ใช้ยืนยัน T0.3 แล้ว · harvester 2 ตัว (scraper/jobthai_harvester.py, scraper/jobbkk_harvester.py) กำลังรันอยู่ในหน้าต่าง cmd ของผู้ใช้ เก็บลง data/jobthai.sqlite, data/jobbkk.sqlite
+  - **ห้ามหยุด/รีสตาร์ท/แก้ไฟล์ harvester และห้ามเขียนลงไฟล์ .sqlite พวกนั้น** อ่านได้อย่างเดียวผ่าน pipeline.scraper.import_sqlite
+  - **ห้ามยิง request ไปที่ JobThai/JobBKK เอง** (ต้องทีละ 1 request และ harvester ใช้โควตานั้นอยู่)
+- ตัวเชื่อมข้อมูล: `py -X utf8 -m pipeline.scraper.import_sqlite` อ่าน SQLite → staging.listing_seen + staging.job_posting_raw (dedupe content_hash, รันซ้ำได้) และเขียน N_h ลง data/processed/jobthai_strata.csv (+ jobthai_province_totals.csv เมื่อครบทุกจังหวัด) · stratum รูปแบบ `p=<province_id>|c=<jobtype_id>`
 
-### รูปแบบการทำงาน (Autonomous Execution)
-ให้ลุยงานตามลำดับใน `docs/PROGRESS.md` หัวข้อ 4 และ `TASKS.md` (Phase 0 → 9) ต่อเนื่องกันไปเลยโดยยึดหลักดังนี้:
-1. **บนเครื่องนี้เรียก Python ด้วยคำสั่ง `py`** (มี Python 3.13.7, Node v26, Git, Docker พร้อมแล้ว) ให้ใส่ `-X utf8` เวลาสั่งรันสคริปต์ภาษาไทย
-2. **งานที่มีป้าย `👤` (ต้องรอคนจริง เช่น สร้างโปรเจกต์ Supabase จริง, ส่งอีเมลจริง, รันดึงข้อมูลจริงหลายคืน 5,000 ประกาศ, คนติด label 200 ประกาศ, เก็บแบบสอบถามจริง):** ห้ามหยุดรอเฉยๆ ให้ทำส่วนโค้ด สคริปต์ ไฟล์ร่างจดหมาย คู่มือ และเทสต์ทั้งหมดให้เสร็จ 100% โดยใช้ข้อมูลตัวอย่าง 131 ประกาศที่มีอยู่แล้วใน `spike/out/sample_jobs.csv` และ `spike/raw/jobthai/` ในการทดสอบ pipeline และ ML ทั้งสาย แล้วข้ามไปทำ Task ถัดไปทันที
-3. **ลำดับการลงมือทำตอนนี้:**
-   - **ขั้นที่ 1 (Phase 0 + เอกสารสำคัญ):** ทำ `T0.1` (`git init`, สร้างโครงโฟลเดอร์ครบตาม `ARCHITECTURE.md §10`, สร้าง `.venv` และ `pipeline/requirements.txt`), ทำส่วนร่างเอกสารของ `T0.3` (`docs/letters/advisor-approval-letter.md` และ `docs/letters/jobthai-permission-email.md`), และเขียนร่างบทที่ 1 `T9.1` (`docs/chapters/chapter-01-introduction.md`)
-   - **ขั้นที่ 2 (Database Migrations):** เขียน SQL migrations `001` ถึง `005` ใน `supabase/migrations/` ให้ครบทุกตาราง views สิทธิ์ grant/revoke และ RLS policies ตาม `ARCHITECTURE.md §3` พร้อม seed 77 จังหวัดใน `dim_location` และ `dim_date` (`T1.1`, `T3.1`, `T3.2`, `T3.5`, `T3.6`, `T3.8`, `T6.1`)
-   - **ขั้นที่ 3 (Phase 1 Scraper):** สร้าง `pipeline/scraper/` (`config.py`, `parse.py`, `discovery.py`, `fetch.py`, `load_staging.py`, `quota.py`, `rediscover.py`) + unit tests ใน `pipeline/tests/test_scraper.py` ทดสอบกับไฟล์ HTML ใน `spike/raw/jobthai/` ให้ผ่านครบตาม DoD (`T1.2`–`T1.7`, `T1.10`) *ห้ามยิงดึงข้อมูลจริงจากเว็บเพิ่มเกินจำเป็น*
-   - **ขั้นที่ 4 (Phase 2–3 ETL, Taxonomy, Validation):** สร้าง `taxonomy/skills.csv` (≥ 100 ทักษะ), `aliases.csv`, `occupations.csv`, โมดูล `pipeline/etl/` (`clean.py`, `extract_skills.py`, `map_taxonomy.py`, `validate.py`, `load_dw.py`, `build_marts.py`, `run_pipeline.py`), คู่มือ `eval/labeling-guideline.md`, สคริปต์วัด precision/recall/Cohen's κ และ unit tests (`test_clean.py` ครอบคลุมเงินเดือน 30 รูปแบบ, `test_skills.py`) (`T2.1`–`T2.7`, `T3.3`–`T3.7`)
-   - **ขั้นที่ 5 (Phase 4 ML & FastAPI `services/ml-api`):** สร้าง `services/ml-api/` (`main.py`, `requirements.txt`, `Dockerfile`, `render.yaml`) และ `pipeline/ml/` (`features.py`, `benchmark.py`, `champion.py`, `export_model.py`) + unit tests ตรวจห้ามมีคอลัมน์เพศ/อายุ/ชื่อบริษัท และทดสอบรัน benchmark + export โมเดลจากข้อมูลตัวอย่าง 131 ประกาศให้ `ml-api` โหลดและตอบ `/health`, `/predict`, `/predict/batch` ได้จริง (`T4.0`–`T4.6`)
-   - **ขั้นที่ 6 (Phase 5–8 Frontend, Auth, Gemini Chat, Testing):** สร้าง Next.js ใน `apps/web/` ตาม `DESIGN_SYSTEM.md` และ `FRONTEND_SPEC.md` จนครบทุกหน้า พร้อม `/api/salary/estimate`, `/api/chat`, ระบบสลับโหมดข้อมูล (อ่านจาก Supabase จริงเมื่อมี env หรืออ่านจาก sample/seed เพื่อพัฒนาและทดสอบได้ทันที) และชุดทดสอบใน Phase 8
-4. ทุกครั้งที่จบแต่ละงาน ให้รันเทสต์พิสูจน์ผล ติ๊ก `[x]` ใน `TASKS.md` และอัปเดต `docs/PROGRESS.md`
-5. ตอบเป็นภาษาไทย กระชับ อ้างไฟล์และหัวข้อที่เกี่ยวข้องทุกครั้ง เริ่มลงมือตั้งแต่ขั้นที่ 1 ได้เลย
+## 3. งานที่ต้องทำตามลำดับ (ทำทีละข้อ จบแต่ละข้อให้รันเทสต์ ติ๊ก TASKS.md อัปเดต docs/PROGRESS.md แล้ว git commit เฉพาะไฟล์ที่แก้ ห้ามใช้ git add -A ถ้ามีไฟล์ใน data/ หรือ .env)
+1. **ลง migrations จริง (T1.1, T3.1, T3.2, T3.5, T3.6, T3.8, T6.1):** โหลด .env แล้ว `npx supabase db push --db-url "$env:DATABASE_URL"` (ไฟล์ใน supabase/migrations/001–005) ถ้าพังให้แก้ SQL ให้ผ่านบน Postgres 17 ของ Supabase แล้วรันใหม่ · ตรวจด้วยสคริปต์ Python ว่ามี schema staging/dw/mart/ml ครบ และตารางตาม ARCHITECTURE §3
+2. **ทดสอบสิทธิ์ (T3.8, T6.4):** ใช้ publishable key เรียก REST ต้องอ่าน staging/dw/ml ไม่ได้, อ่าน mart.pipeline_status/mart.dq_summary ไม่ได้, อ่าน mart.public_summary ได้ · ทดสอบ RLS app_profile ว่าผู้ใช้ตั้ง role เป็น admin เองไม่ได้ (สร้างผู้ใช้ทดสอบด้วย secret key แล้วลบทิ้งหลังเทสต์) · ถ้า REST อ่าน mart ไม่ได้เพราะยังไม่ได้เปิด Exposed schemas ให้บันทึกเป็นงาน 👤 ใน PROGRESS แล้วทำข้อถัดไป
+3. **นำเข้าข้อมูลจริงเข้า Postgres (T1.5):** `py -X utf8 -m pipeline.scraper.import_sqlite` (ไม่ใส่ --sqlite-path จะเขียนเข้า DATABASE_URL) · ตรวจว่ารันซ้ำแล้วจำนวนแถวไม่เพิ่ม
+4. **แบ่งชั้นจังหวัด × ประเภทงาน (T1.7, T3.4):** แก้ pipeline/etl/load_dw.py ให้ sample_stratum มาจาก stratum ใน staging.listing_seen ของประกาศนั้น และ sample_weight = N_h / n_h โดย N_h จาก jobthai_strata.csv, n_h = จำนวนประกาศที่ดึงรายละเอียดได้ในชั้นนั้น · ประกาศที่ยังไม่มีชั้นของตัวเอง (stratum ไม่มี `|c=`) ให้ใช้ระดับจังหวัดจาก jobthai_province_totals.csv · เพิ่มเทสต์ Σw ต่อชั้น = N_h
+5. **รันทั้งสายกับข้อมูลจริง (T3.7, T3.3, T3.4, T3.5):** run_pipeline.py อ่านจาก staging ใน Postgres → dw → marts · รันซ้ำแล้วจำนวนแถวไม่เปลี่ยน · อัปเดต docs/dq-report.md
+6. **เว็บต่อ Supabase จริง (T0.2 ส่วน Next.js, T5.4):** ให้ apps/web อ่าน mart จาก Supabase เมื่อมี env และ fallback seed_marts.json เมื่อไม่มี · npm run build + vitest ต้องผ่าน · ห้ามส่ง description/qualifications ออก API/หน้าเว็บ และซ่อนค่าที่ n < 5
+7. **บัญชีเดโม (T6.2, T6.3):** สคริปต์สร้าง 4 persona ด้วย secret key จาก DEMO_* ใน .env (ห้ามพิมพ์รหัสออกมา) role student/institution/admin ตาม ARCHITECTURE §3.6
+8. **clone แล้วรันเทสต์ได้ (T0.1):** ทำ fixture ใน pipeline/tests/fixtures/ ที่ตัดข้อความประกาศ (description/qualifications) ออก ให้เทสต์ที่ใช้ spike/raw/ และ spike/out/ ข้ามเมื่อไม่มีไฟล์ (pytest.mark.skipif) หรือใช้ fixture แทน
+9. ทำงาน `[~]` ที่เหลือใน TASKS.md ต่อตามลำดับพึ่งพาท้ายไฟล์ · งาน 👤 ให้เตรียมทุกอย่างให้พร้อมแล้วบันทึกสิ่งที่ผู้ใช้ต้องทำใน PROGRESS หัวข้อ 2
+
+## 4. กติกาที่ห้ามพลาด (สรุปจาก AGENTS.md)
+- ห้ามขยายขอบเขต (ไม่มีระบบสมัครงาน/สรรหา/บริษัทลงประกาศ/résumé) ถ้าจะเพิ่มงานต้องถามผู้ใช้พร้อมบอกผลต่อเวลา
+- ห้ามแตะ JobTopGun, JobsDB, Indeed · เว็บแสดงเฉพาะสถิติรวม n >= 5 + ลิงก์ต้นฉบับ · ไม่เก็บข้อมูลติดต่อ HR
+- ML ห้ามใช้ gender/age/company_name เป็น feature · GroupKFold(5) ตาม company_key + nested GroupKFold(3)
+- ห้ามใช้ LLM ดึงทักษะ/จัดหมวด/เสนอ alias/ติด label · ห้าม Text-to-SQL · Gemini ใช้แค่แชทตอบจาก pageContext
+- ห้าม commit: data/, spike/raw/, spike/out/, design/*.jpg, .env* · ห้ามพิมพ์คีย์/รหัสผ่านใน log หรือคำตอบ
+- อย่าติ๊ก [x] ถ้ายังไม่ได้รันพิสูจน์ DoD จริง ให้ใช้ [~] และเขียนเหตุผลใน PROGRESS
 ```

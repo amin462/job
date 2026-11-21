@@ -180,6 +180,40 @@ class StagingStore:
         self._sqlite_conn.commit()
         return int(cur.lastrowid)
 
+    def find_scrape_run(self, source: str, scope: str) -> int | None:
+        """Return the newest scrape_run_id with this source+scope, or None."""
+        source_norm = validate_source(source)
+        if self.backend == "postgres":
+            with self._pg_conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT scrape_run_id FROM staging.scrape_run
+                    WHERE source = %s AND scope = %s
+                    ORDER BY scrape_run_id DESC LIMIT 1
+                    """,
+                    (source_norm, scope),
+                )
+                row = cur.fetchone()
+            return int(row[0]) if row else None
+
+        assert self._sqlite_conn is not None
+        row = self._sqlite_conn.execute(
+            """
+            SELECT scrape_run_id FROM scrape_run
+            WHERE source = ? AND scope = ?
+            ORDER BY scrape_run_id DESC LIMIT 1
+            """,
+            (source_norm, scope),
+        ).fetchone()
+        return int(row[0]) if row else None
+
+    def get_or_create_scrape_run(self, source: str, scope: str) -> int:
+        """Reuse the run with this source+scope so re-imports stay idempotent."""
+        found = self.find_scrape_run(source, scope)
+        if found is not None:
+            return found
+        return self.create_scrape_run(source, scope=scope)
+
     def update_scrape_run(
         self,
         scrape_run_id: int,
@@ -270,7 +304,14 @@ class StagingStore:
         self,
         scrape_run_id: int,
         records: Sequence[dict[str, Any]],
+        *,
+        update_existing: bool = False,
     ) -> int:
+        """Insert listing sightings; returns the number of new rows.
+
+        With `update_existing=True` a row already in this run gets the new
+        `seen_date`/`stratum` (used by import_sqlite to move `last_seen` forward).
+        """
         if not records:
             return 0
         rows_to_insert = []
@@ -286,30 +327,44 @@ class StagingStore:
                 )
             )
 
+        on_conflict = (
+            "DO UPDATE SET seen_date = excluded.seen_date, stratum = excluded.stratum"
+            if update_existing
+            else "DO NOTHING"
+        )
+
         if self.backend == "postgres":
-            inserted = 0
             with self._pg_conn.cursor() as cur:
-                for row in rows_to_insert:
-                    cur.execute(
-                        """
-                        INSERT INTO staging.listing_seen
-                            (scrape_run_id, source, source_job_id, stratum, seen_date)
-                        VALUES (%s, %s, %s, %s, %s)
-                        ON CONFLICT (scrape_run_id, source, source_job_id) DO NOTHING
-                        """,
-                        row,
-                    )
-                    inserted += cur.rowcount
+                cur.execute(
+                    "SELECT COUNT(*) FROM staging.listing_seen WHERE scrape_run_id = %s",
+                    (int(scrape_run_id),),
+                )
+                before_pg = int(cur.fetchone()[0])
+                cur.executemany(
+                    f"""
+                    INSERT INTO staging.listing_seen
+                        (scrape_run_id, source, source_job_id, stratum, seen_date)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT (scrape_run_id, source, source_job_id) {on_conflict}
+                    """,
+                    rows_to_insert,
+                )
+                cur.execute(
+                    "SELECT COUNT(*) FROM staging.listing_seen WHERE scrape_run_id = %s",
+                    (int(scrape_run_id),),
+                )
+                after_pg = int(cur.fetchone()[0])
             self._pg_conn.commit()
-            return inserted
+            return after_pg - before_pg
 
         assert self._sqlite_conn is not None
         before = self._sqlite_conn.execute("SELECT COUNT(*) FROM listing_seen").fetchone()[0]
         self._sqlite_conn.executemany(
-            """
-            INSERT OR IGNORE INTO listing_seen
+            f"""
+            INSERT INTO listing_seen
                 (scrape_run_id, source, source_job_id, stratum, seen_date)
             VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (scrape_run_id, source, source_job_id) {on_conflict}
             """,
             rows_to_insert,
         )

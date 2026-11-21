@@ -16,7 +16,13 @@ from pipeline.etl.extract_skills import SkillExtractor
 from pipeline.etl.map_taxonomy import OccupationMapper
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_PROVINCE_TOTALS = REPO_ROOT / "spike" / "raw" / "jobthai" / "by_province" / "province_totals.csv"
+SPIKE_PROVINCE_TOTALS = REPO_ROOT / "spike" / "raw" / "jobthai" / "by_province" / "province_totals.csv"
+# Fresh N_h per province from the JobThai harvester listing totals
+# (written by `py -X utf8 -m pipeline.scraper.import_sqlite`); falls back to the spike file.
+HARVEST_PROVINCE_TOTALS = REPO_ROOT / "data" / "processed" / "jobthai_province_totals.csv"
+DEFAULT_PROVINCE_TOTALS = (
+    HARVEST_PROVINCE_TOTALS if HARVEST_PROVINCE_TOTALS.exists() else SPIKE_PROVINCE_TOTALS
+)
 
 
 def load_province_population(province_totals_csv: Path | str = DEFAULT_PROVINCE_TOTALS) -> dict[str, int]:

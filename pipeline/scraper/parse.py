@@ -361,9 +361,34 @@ def parse_html(
     file_path: str | Path | None = None,
 ) -> dict[str, Any] | None:
     """Parse a job posting HTML string into a PDPA-clean `staging.job_posting_raw` record."""
-    source_norm = validate_source(source)
     raw_item = extract_jobposting_jsonld(html)
     if raw_item is None:
+        return None
+    return parse_jobposting_item(
+        raw_item,
+        source=source,
+        source_job_id=source_job_id,
+        source_url=source_url,
+        html=html,
+        file_path=file_path,
+    )
+
+
+def parse_jobposting_item(
+    raw_item: dict[str, Any],
+    source: str = "jobthai",
+    source_job_id: str | None = None,
+    source_url: str | None = None,
+    html: str = "",
+    file_path: str | Path | None = None,
+) -> dict[str, Any] | None:
+    """Turn one schema.org JobPosting dict into a PDPA-clean staging record.
+
+    Used by `parse_html` and by `import_sqlite`, which reads JSON-LD the
+    harvesters in `scraper/` already stored (no HTML kept there).
+    """
+    source_norm = validate_source(source)
+    if not isinstance(raw_item, dict) or raw_item.get("@type") != "JobPosting":
         return None
 
     # Strip all HR contact keys and PII from payload first

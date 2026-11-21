@@ -1,57 +1,99 @@
 # PROGRESS.md — สมุดบันทึกความคืบหน้าโครงงาน (Skill Demand Intelligence / E′)
 
 > ไฟล์นี้ให้ AI Agent อัปเดตทุกครั้งที่ทำงานแต่ละ Task ใน [TASKS.md](../TASKS.md) เสร็จ เพื่อให้ส่งต่องานข้ามเซสชันได้โดยไม่หลุดบริบท
+> สัญลักษณ์ใน TASKS.md: `[x]` เสร็จตาม DoD · `[~]` มีโค้ด/ร่างแล้ว แต่ DoD ยังขาดส่วนที่ต้องใช้ Supabase จริง ข้อมูลจริง หรือคน · `[ ]` ยังไม่ทำ
 
 ---
 
-## 1. สถานะภาพรวมปัจจุบัน
+## 1. สถานะภาพรวมปัจจุบัน (21 พ.ย. 2569)
 
-- **เวอร์ชันแผน:** `PLAN.md` v4.2 (ล็อกการตัดสินใจ D1–D19 ครบถ้วน)
-- **Phase ปัจจุบัน:** กำลังเริ่ม **Phase 0 (Setup & ข้อตกลง)** ควบคู่กับ **T9.1 (ร่างบทที่ 1)** และ **Phase 1–3 (Migrations & Pipeline โครงหลัก)**
-- **ข้อมูลที่มีอยู่แล้วในเครื่อง:**
-  - `spike/out/sample_jobs.csv` (131 ประกาศจาก JobThai ที่ parse แล้ว)
-  - `spike/raw/jobthai/sample` (29 ไฟล์) และ `spike/raw/jobthai/by_province` (111 ไฟล์)
-  - สามารถใช้ชุดข้อมูล 131 ประกาศนี้เขียนและรัน unit tests ของ Phase 1–4 ได้ทันทีโดยไม่ต้องดึงข้อมูลจากเว็บเพิ่ม
+- **เวอร์ชันแผน:** `PLAN.md` v4.2 (D1–D19)
+- **git:** commit แรก `753a33a` บน `master` (ยังไม่มี remote) — data/, spike/raw/, spike/out/, design/, .env* ไม่อยู่ใน git
+- **TASKS.md:** `[x]` 14 ข้อ · `[~]` 49 ข้อ · `[ ]` 18 ข้อ (ตรวจเทียบ DoD แล้วเมื่อ 21 พ.ย.)
+- **Supabase (T0.2):** โปรเจกต์ `smaaunonziebjvfyfuje` (Tokyo) · คีย์อยู่ใน `.env` และ `apps/web/.env.local` (ไม่อยู่ใน git) · Python ต่อผ่าน **Session pooler** ได้แล้ว (host ตรง `db.*.supabase.co` มีแต่ IPv6 เครื่องนี้ต่อไม่ได้) · ฐานข้อมูลยังว่าง ยังไม่ได้ลง migrations
+- **GitHub:** `https://github.com/amin462/job` (public, ยังว่าง) — ยังไม่ได้ตั้ง remote/push รอผู้ใช้สั่ง
+- **เทสต์ล่าสุด:** `pytest` scraper+import+skills+clean 90 passed (รวมเทสต์ N_h ใหม่ 4 ข้อ) · `test_ml.py` ผ่านเมื่อเช้า (ไม่ได้แก้ไฟล์ ML) · `vitest` 26/26 · `tsc --noEmit` ผ่าน · `npm run build` ผ่าน (26 route)
+- **การเก็บข้อมูลจริง (T1.8) กำลังรัน:** ผู้ใช้ยืนยัน T0.3 แล้ว (21 พ.ย.) — harvester ทั้งสองตัวรันแบบหน้าต่าง cmd ย่อไว้ ด้วย delay ≥ 5 วินาที
+  - JobThai (`data/jobthai.sqlite`): 16,130 job id · ดึงรายละเอียดแล้ว 291 · error 2 · ที่เหลือรอดึง (ประมาณ 27 ชม. หลังสแกนรายการรอบใหม่ ~6 ชม.)
+  - JobBKK (`data/jobbkk.sqlite`): 7,542 job id (ยังสแกนกรุงเทพฯ ไม่ครบ) · ยังไม่ได้ดึงรายละเอียด
+- **ข้อมูลตัวอย่างสำหรับพัฒนา:** `spike/out/sample_jobs.csv` (131 ประกาศ) + `spike/raw/jobthai/` (140 ไฟล์ HTML) — ไม่อยู่ใน git
 
 ---
 
 ## 2. รายการที่รอผู้ใช้ดำเนินการจริง (`👤` Human Actions)
 
-> **กติกาสำหรับ AI Agent:** ห้ามหยุดรอรายการด้านล่าง ให้สร้างไฟล์ร่าง สคริปต์ SQL migrations โค้ด pipeline โค้ด `services/ml-api` และโค้ด `apps/web` ล่วงหน้าให้ครบ แล้วติ๊กงานส่วนโค้ดเดินหน้าต่อไปได้เลย
+> **กติกาสำหรับ AI Agent:** ห้ามหยุดรอรายการด้านล่าง ให้ทำส่วนโค้ด/ร่างให้ครบแล้วเดินงานถัดไป
 
-- [ ] **👤 T0.2:** สร้างโปรเจกต์บน Supabase แล้วนำ `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL` มาใส่ใน `.env` และ `apps/web/.env.local`
-- [ ] **👤 T0.3:** ตรวจร่างหนังสือใน `docs/letters/` (เมื่อ Agent สร้างเสร็จ) กรอกชื่อมหาวิทยาลัย/อาจารย์/นักศึกษา แล้วส่งขออนุมัติอาจารย์ + ส่งอีเมลถึง JobThai
-- [ ] **👤 T0.4:** ตอบคำถามใน `PLAN.md §11` (จำนวนผู้จัดทำ, วันสอบจริง, เกณฑ์จำนวนกลุ่มตัวอย่างแบบสอบถามของอาจารย์)
-- [ ] **👤 T0.6:** สอบถามฝ่าย IT มหาวิทยาลัยว่ามี VM/เซิร์ฟเวอร์ที่เปิด HTTPS สาธารณะให้รัน `services/ml-api` หรือไม่ (ระหว่างรอ ให้ใช้ Render Free เป็นค่าเริ่มต้นตาม `docs/DEPLOY.md`)
-- [ ] **👤 T1.8:** รันเก็บข้อมูลจริงหลายคืน (≥ 5,000 ประกาศ) หลังส่งหนังสือ T0.3 และทดสอบสคริปต์ T1.2–T1.7 ผ่านแล้ว · เตรียม `pipeline/scraper/run_long.py` สำหรับรันหลาย batch แบบสุภาพ; ยังไม่เริ่มจนกว่าจะครบเงื่อนไขอนุญาตและงานก่อนหน้า
-- [ ] **👤 T2.7:** คนตรวจมือ 200 ประกาศตามคู่มือ `eval/labeling-guideline.md` ลงใน `eval/skills_gold.csv`
-- [ ] **👤 T8.3:** เก็บแบบสอบถามความพึงพอใจ Likert 5 ระดับจากผู้ใช้จริงตามจำนวนที่อาจารย์กำหนด
+- [~] **👤 T0.2:** สร้างโปรเจกต์ + ใส่คีย์ใน `.env` แล้ว (21 พ.ย.) · Python ต่อได้ · ยังไม่ได้ลองต่อจาก Next.js · **ผู้ใช้ต้องทำเพิ่ม:** Dashboard → Project Settings → Data API → Exposed schemas เพิ่ม `mart` (ไม่เปิด staging/dw/ml) และหา Gemini API key ใส่ `GEMINI_API_KEY` ใน `.env` + `apps/web/.env.local`
+- [x] **👤 T0.3:** ผู้ใช้ยืนยันหนังสืออนุญาตแล้ว (21 พ.ย. 2569)
+- [ ] **👤 T0.4:** ตอบคำถามใน `PLAN.md §11` (จำนวนผู้จัดทำ, วันสอบจริง, เกณฑ์จำนวนกลุ่มตัวอย่างแบบสอบถาม)
+- [ ] **👤 T0.6:** ถาม IT มหาวิทยาลัยเรื่อง VM/HTTPS สำหรับ `services/ml-api` (ระหว่างรอใช้ Render Free)
+- [~] **👤 T1.8:** กำลังรัน harvester (ดูหัวข้อ 1) · เมื่อมีประกาศ ok เพิ่ม ให้รัน `py -X utf8 -m pipeline.scraper.import_sqlite` เพื่อนำเข้า staging
+- [ ] **👤 T2.7:** คนตรวจมือ 200 ประกาศตาม `eval/labeling-guideline.md` ลงใน `eval/skills_gold.csv` (ห้ามใช้ LLM)
+- [ ] **👤 T8.3:** เก็บแบบสอบถาม Likert 5 ระดับ (ร่างข้อคำถามอยู่ใน `docs/questionnaire.md`)
 
 ---
 
-## 3. บันทึกงานที่ทำเสร็จแล้ว (Changelog)
+## 3. การตัดสินใจของผู้ใช้ที่ต้องรู้ (21 พ.ย. 2569)
+
+1. **T0.3 ยืนยันแล้ว** → เก็บข้อมูลจริงจำนวนมากได้
+2. **Delay ≥ 5 วินาที:** แก้ค่าเริ่มต้นและค่าขั้นต่ำใน `scraper/jobthai_harvester.py`, `scraper/jobbkk_harvester.py`, `scraper/run_jobthai.bat`, `scraper/run_jobbkk.bat` เป็น 5 วินาที (+ jitter 0–50%)
+3. **การรับมือ 403/429/CAPTCHA ใน harvester คงไว้แบบเดิมตามที่ผู้ใช้เลือก:** พัก 60 นาทีแล้วลองใหม่ หยุดเมื่อโดน 3 ครั้งติด (exit code 2) — ⚠️ ต่างจาก AGENTS.md ข้อ 2 ที่ให้หยุดทั้งรอบทันที (`pipeline/scraper/fetch.py` ยังหยุดทันทีตามกฎ)
+4. **ลำดับรัน harvester คงเดิม:** สแกนหน้ารายการทั้งหมดก่อน แล้วค่อยดึงรายละเอียด (ได้ first_seen/last_seen สดสำหรับ D14)
+5. **รวม scraper เป็นชุดเดียว:** ใช้ `scraper/` (harvester ที่ทดสอบกับเว็บจริงแล้ว) เป็นตัวเก็บข้อมูล + `pipeline/scraper/import_sqlite.py` เป็นสะพานเข้า staging · `pipeline/scraper/run_long.py`, `harvest_batch.py`, `jobbkk_harvest.py` ไม่ใช้เก็บจริงแล้ว (เก็บไว้เป็นโค้ดอ้างอิงและเทสต์)
+
+---
+
+## 4. ข้อสังเกต/ความเสี่ยงที่พบ
+
+- **N_h ของชั้นสุ่ม (T1.7) — แก้แล้ว 21 พ.ย.:** หน้ารายการ JobThai ฝัง JSON `{"data":{"total":N,"data":[...]}}` ไว้ ซึ่งบอกทั้ง N_h ของตัวกรองนั้น และ `province.id`/`jobType.id` ของแต่ละประกาศ harvester เก็บค่านี้แล้ว (ไม่ยิง request เพิ่ม) ตรวจกับข้อมูลจริงแล้ว: นนทบุรี × งานธุรการ N_h = 158 และ 20 ประกาศที่ได้มีชั้นตรงกันทั้งหมด · ค่าจะครบทุกชั้นหลัง harvester สแกนหน้ารายการรอบนี้เสร็จ (~6 ชม.) แล้วรัน `py -X utf8 -m pipeline.scraper.import_sqlite`
+  - ข้อจำกัดที่เหลือ: แต่ละชั้นได้แค่ ≤ 20 ประกาศล่าสุด (หน้าแรก) ชั้นใหญ่ เช่น กรุงเทพฯ จึงถูกสุ่มน้อยกว่าสัดส่วน (น้ำหนักสูง ความแปรปรวนสูง) — ถ้าต้องการจัดสรรตามสัดส่วนจริงต้องไล่หน้า 2..k ของชั้นใหญ่ตาม `quota.py`
+  - หน้ารายการที่ total = 0 ยังมีลิงก์ประกาศอื่น ~5 ลิงก์ (ประกาศแนะนำ) — id พวกนี้ไม่มีชั้นของตัวเองจนกว่าจะไปเจอในหน้าของชั้นจริง ห้ามนับเข้าชั้นของหน้าที่เจอ
+- **clone แล้วรันเทสต์ไม่ครบ (T0.1):** เทสต์บางข้อใช้ `spike/raw/` และ `spike/out/` ซึ่งไม่อยู่ใน git (มีข้อความประกาศ) — ต้องคัดลอกไฟล์เองหรือทำ fixture ที่ตัดข้อความออก
+- **JobBKK** เป็นงานระดับ Could (T1.9 / T8.6) แต่ harvester รันอยู่แล้ว
+- งาน `[~]` ฝั่ง DB (migrations 001–005, grants, RLS, marts) **ยังไม่เคยรันกับ Postgres/Supabase จริง** — ต้องทดสอบ `npx supabase db reset` หลัง T0.2
+
+---
+
+## 5. บันทึกงานที่ทำเสร็จแล้ว (Changelog)
+
+### 2026-11-21 (บ่าย) — Supabase .env + N_h ของชั้นสุ่ม (T0.2, T1.7)
+- `.env`, `apps/web/.env.local`: ใส่ URL/publishable/secret key ของ Supabase (ตั้งชื่อเดิม `NEXT_PUBLIC_SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` ให้ด้วยเพราะโค้ดเรียกชื่อนั้น) · `DATABASE_URL` = Session pooler `aws-1-ap-northeast-1` · สุ่ม `ML_API_KEY` และรหัสบัญชีเดโม 4 บัญชีไว้ใน `.env`
+- `scraper/jobthai_harvester.py`: `parse_listing()` อ่าน total + province/jobType ของแต่ละประกาศจาก JSON ในหน้ารายการ (เก็บเฉพาะรหัส/ชื่อหมวด ไม่เก็บชื่อบริษัท) · เพิ่มคอลัมน์ `listing.total`, `job.province_id`, `job.jobtype_id`, ตาราง `ref` (อัปเกรด DB เดิมอัตโนมัติ ข้อมูลเดิมอยู่ครบ) · สแกนหน้ารายการที่ยังไม่มี total ก่อน · รีสตาร์ทแล้ว 15:33
+- `pipeline/scraper/import_sqlite.py`: stratum ของแต่ละประกาศใช้ `p=<province_id>|c=<jobtype_id>` ของตัวมันเอง (ถ้ายังไม่รู้ใช้หน้าที่เจอ) · `export_jobthai_strata()` เขียน `data/processed/jobthai_strata.csv` (stratum, N_h, n_seen, n_fetched) และ `jobthai_province_totals.csv` (เขียนเมื่อทุกจังหวัดมี total แล้วเท่านั้น)
+- `pipeline/etl/load_dw.py`: ใช้ `data/processed/jobthai_province_totals.csv` เป็น N_h ถ้ามีไฟล์ ไม่งั้นใช้ไฟล์ spike เดิม
+- `pipeline/tests/test_import_sqlite.py`: +4 เทสต์ (parse_listing, อัปเกรด schema, stratum + export N_h, ไม่เขียน province totals ถ้ายังไม่ครบ)
+
+### 2026-11-21 — ตรวจงาน Gemini, ปรับ harvester, commit แรก, ตัวนำเข้า SQLite
+- ตรวจไฟล์ที่ Gemini สร้าง (18 พ.ย. 22:35 – 19 พ.ย. 00:33): migrations 001–005, `pipeline/scraper|etl|ml`, `services/ml-api`, `apps/web` (26 route), taxonomy (128 ทักษะ / 568 alias / 21 กลุ่มอาชีพ), `eval/`, บทที่ 1–5, จดหมาย, แบบสอบถาม, `docs/ml-report.md`, `docs/dq-report.md` — Gemini ไม่ได้ติ๊ก TASKS.md ไว้ จึงไล่ติ๊กใหม่ตาม DoD
+- ปรับ delay ≥ 5 วินาทีใน harvester ทั้งสองตัว แล้วรีสตาร์ท (ความคืบหน้าอยู่ใน SQLite ไม่หาย)
+- `.gitignore`: เพิ่ม `spike/out/` แบบชัดเจน (มี `description_preview`) → commit แรก `753a33a`
+- **ใหม่** `pipeline/scraper/import_sqlite.py`: อ่าน `data/jobthai.sqlite` / `data/jobbkk.sqlite` แบบ read-only →
+  `staging.listing_seen` (stratum `p=XX|c=YY` / `jobbkk|p=<จังหวัด>|c=ทั้งหมด`, วันที่เวลาไทย, แยก run `first_seen`/`last_seen`) และ JSON-LD ที่ status ok → `parse_jobposting_item` (ตัด HR contact + scrub PII) → `staging.job_posting_raw` (dedupe `content_hash`) · รันซ้ำไม่เพิ่มแถว
+  - ผลกับข้อมูลจริง: JobThai 16,130 id → listing_seen, 291 ประกาศ → job_posting_raw (HR key 0, เบอร์โทร/อีเมลในข้อความ 0) · JobBKK 7,542 id → listing_seen · รันรอบสองได้ inserted 0
+  - ปลายทางทดสอบ: `data/processed/staging_harvest.db` (ไม่อยู่ใน git)
+- `pipeline/scraper/parse.py`: แยก `parse_jobposting_item()` ออกจาก `parse_html()` ให้ใช้กับ JSON-LD ได้โดยตรง
+- `pipeline/scraper/load_staging.py`: เพิ่ม `find_scrape_run`, `get_or_create_scrape_run`, และ `insert_listing_seen(update_existing=True)`
+- **ใหม่** `pipeline/tests/test_import_sqlite.py` (4 เทสต์: วันที่/stratum, PII, idempotent + last_seen เลื่อน, JobBKK URL)
+- แก้ `apps/web/src/__tests__/ui-components.test.tsx`: เทสต์ OfficialLaborTrendCard ค้นข้อความที่ซ้ำ 2 จุด → ค้นป้าย "ไม่ใช่ประกาศงานล่าสุด" แทน
+
+### 2026-11-18/19 — งานที่ Gemini ทำ (ตรวจแล้ว 21 พ.ย.)
+- ร่างเอกสาร: `docs/letters/*`, `docs/chapters/chapter-01..05`, `docs/questionnaire.md`, `docs/presentation-outline.md`, `eval/labeling-guideline.md`
+- DB: `supabase/migrations/001–005` (schemas, staging, dims + seed 77 จังหวัด, facts, marts + grants, `app_*` + RLS)
+- Pipeline: `pipeline/scraper/*` (config, parse, discovery, fetch, load_staging, quota, rediscover, harvest_batch, jobbkk_harvest, run_long), `pipeline/etl/*` (clean, extract_skills, map_taxonomy, validate, load_dw, build_marts, run_pipeline), `pipeline/ml/*` (features, benchmark, champion, export_model) + ผลรันบนตัวอย่าง n = 126 (Champion `Ridge`, RMSE 7,334 บาท vs baseline 10,045)
+- `services/ml-api` (FastAPI + Dockerfile + `render.yaml`), `models/salary_champion.joblib` + `feature_spec.json`
+- `apps/web`: Next.js 16 + Tailwind v4 + ECharts ทุกหน้าใน FRONTEND_SPEC, `/api/chat`, `/api/salary/estimate`, `/api/demo`, อ่านข้อมูลจาก `data/processed/seed_marts.json` เมื่อยังไม่มี Supabase
 
 ### 2026-11-18 — วางโครงเอกสารและสถาปัตยกรรม v4.2
-- [x] ทดลองดึงข้อมูลเบื้องต้น (Data Spike n = 131) และสรุปผลใน [docs/data-spike-2026-11-18.md](data-spike-2026-11-18.md)
-- [x] จัดทำเอกสารหลักครบทุกไฟล์: [PLAN.md](../PLAN.md), [TASKS.md](../TASKS.md), [CONTEXT.md](../CONTEXT.md), [ARCHITECTURE.md](../ARCHITECTURE.md), [FRONTEND_SPEC.md](../FRONTEND_SPEC.md), [DESIGN_SYSTEM.md](../DESIGN_SYSTEM.md)
-- [x] ปรับปรุงแผนเป็น **v4.1 (D13–D18)**:
-  - เพิ่มตาราง `staging.listing_seen`, คอลัมน์ `first_seen_date_key`, `last_seen_date_key`, `sample_stratum`, `sample_weight` ใน `dw.fact_job_posting`
-  - เปลี่ยนตารางแนวโน้มเป็นรายสัปดาห์ `mart.skill_demand_weekly` (ถ่วงน้ำหนัก) และเพิ่ม `mart.public_summary` สำหรับหน้า Landing
-  - แก้ไข RLS ของ `public.app_profile` แยก `insert`/`update` บังคับ `role in ('student','institution')` ป้องกันผู้ใช้ยกระดับสิทธิ์เป็น `admin`
-  - ล็อกกติกาการแปลงเงินเดือน, การจูนโมเดลแบบ Nested `GroupKFold(3)`, คู่มือตรวจมือ 200 ประกาศ + Cohen's κ และการเสนอ alias ด้วย `pg_trgm` (ไม่ใช้ AI)
-- [x] ปรับปรุงแผนเป็น **v4.2 (D19 — Deploy ฟรี 2 ที่ + DB)**:
-  - ใช้ **Vercel** (`apps/web`) + **Supabase** (Postgres/Auth/RLS) + **Render Free หรือเซิร์ฟเวอร์มหาวิทยาลัย** สำหรับ FastAPI `services/ml-api` (เสิร์ฟโมเดล Champion โดยตรง ไม่ใช้ ONNX และไม่ใช้ Railway)
-  - สร้างไฟล์นำทางและคู่มือครบชุด: [INDEX.md](../INDEX.md), [AGENTS.md](../AGENTS.md), [GEMINI.md](../GEMINI.md), [README.md](../README.md), [docs/DEPLOY.md](DEPLOY.md), [docs/PROGRESS.md](PROGRESS.md), [.env.example](../.env.example), [.gitignore](../.gitignore), [HANDOFF_GEMINI.md](../HANDOFF_GEMINI.md)
+- Data Spike n = 131 ([docs/data-spike-2026-11-18.md](data-spike-2026-11-18.md)) และเอกสารหลักทั้งหมด (PLAN v4.1 → v4.2, D13–D19)
 
 ---
 
-## 4. ลำดับงานถัดไปสำหรับ AI Agent (ทำต่อทันที)
+## 6. ลำดับงานถัดไปสำหรับ AI Agent
 
-1. **T0.1:** รัน `git init` และสร้างโครงสร้างโฟลเดอร์ (`apps/web`, `pipeline`, `services/ml-api`, `taxonomy`, `supabase/migrations`, `eval`, `models`, `docs/letters`, `docs/chapters`) + `pipeline/requirements.txt` + `.venv`
-2. **T0.3 (ส่วนร่างเอกสาร) & T9.1:** สร้างร่างหนังสือขออนุมัติอาจารย์และอีเมลขออนุญาต JobThai ใน `docs/letters/` และเขียนร่างบทที่ 1 ฉบับสมบูรณ์ใน `docs/chapters/chapter-01-introduction.md`
-3. **T1.1, T3.1, T3.2, T3.5, T3.6, T3.8, T6.1:** เขียนไฟล์ SQL Migrations `001` ถึง `005` ใน `supabase/migrations/` ให้ตรงตาม DDL ใน `ARCHITECTURE.md §3` ทุกตารางพร้อม seed 77 จังหวัด (`dim_location`) และ `dim_date`
-4. **T1.2–T1.7:** พัฒนาโมดูล `pipeline/scraper/` (`config.py`, `parse.py`, `discovery.py`, `fetch.py`, `load_staging.py`, `quota.py`, `rediscover.py`) พร้อม `pytest` ทดสอบกับไฟล์ HTML ใน `spike/raw/jobthai/` (ตรวจว่าไม่มี HR contact และจำลอง 429 แล้วหยุดทันที)
-5. **T2.1–T2.7 (ส่วนโค้ดและคู่มือ):** สร้าง `taxonomy/skills.csv` (≥ 100 ทักษะ), `aliases.csv`, `occupations.csv`, โมดูล `pipeline/etl/` (`clean.py`, `extract_skills.py`, `map_taxonomy.py`), คู่มือ `eval/labeling-guideline.md` และสคริปต์คำนวณ precision/recall/κ พร้อม unit tests ครอบคลุมรูปแบบเงินเดือนจริง 30 รูปแบบ
-6. **T3.3, T3.4, T3.7:** พัฒนา `validate.py` (DQ 8 ด้าน), `load_dw.py`, `build_marts.py`, `run_pipeline.py`
-7. **T4.0–T4.6:** สร้าง FastAPI `services/ml-api` (`/health`, `/predict`, `/predict/batch`, `Dockerfile`, `render.yaml`) และโมดูล `pipeline/ml/` (`features.py` พร้อมเทสต์กันคอลัมน์ `gender`/`age`/`company_name`, `benchmark.py` 5 โมเดล + baseline ด้วย Nested GroupKFold, `export_model.py`) แล้วรันทดสอบทั้งสายกับข้อมูลตัวอย่าง 131 ประกาศ
-8. **Phase 5–8:** สร้างเว็บ Next.js `apps/web` ตาม `DESIGN_SYSTEM.md` และ `FRONTEND_SPEC.md` จนครบทุกหน้า + `/api/chat` + `/api/salary/estimate` + E2E/RLS tests
+1. **ระหว่าง harvester รัน:**
+   - เปลี่ยน `load_dw.py` ให้แบ่งชั้นแบบ จังหวัด × ประเภทงาน (ใช้ stratum จาก `listing_seen` + `jobthai_strata.csv`) แทนระดับจังหวัด
+   - ทำ fixture ตัวอย่างที่ตัดข้อความประกาศออก เพื่อให้ clone แล้วรันเทสต์ได้ (ปิด T0.1)
+   - ต่อ `run_pipeline.py` ให้อ่านจาก staging ที่ import_sqlite สร้าง แล้วรันทั้งสายกับ 291+ ประกาศจริง (T3.7)
+2. **ตอนนี้ทำได้แล้ว (T0.2 มีคีย์):** `npx supabase db push --db-url "$DATABASE_URL"` ลง migrations 001–005 → ปิด T1.1, T3.1, T3.2, T3.5, T3.6, T3.8, T6.1, T6.4 → รัน import_sqlite เข้า Postgres
+3. **หลังได้ ≥ 5,000 ประกาศ:** รัน ETL + benchmark ใหม่ด้วยข้อมูลจริง แล้วอัปเดต `docs/ml-report.md`, `docs/dq-report.md`

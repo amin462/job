@@ -182,7 +182,8 @@ describe("Design System UI Components", () => {
         <OfficialLaborTrendCard rows={sampleLabor} />
       </I18nProvider>
     );
-    expect(screen.getByText(/ข้อมูลสถิติหน่วยงานรัฐ/)).toBeTruthy();
+    // provenance badge must say these are official stats, not job postings
+    expect(screen.getByText(/ไม่ใช่ประกาศงานล่าสุด/)).toBeTruthy();
     const toggleBtn = screen.getByRole("button", { name: /ดูเป็นตาราง/i });
     fireEvent.click(toggleBtn);
     expect(screen.getByText("2025-Q1")).toBeTruthy();

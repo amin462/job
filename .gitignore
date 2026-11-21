@@ -31,3 +31,6 @@ data/
 
 # Spike outputs hold posting text (description_preview) - keep out of git
 spike/out/
+
+# Supabase CLI local state
+supabase/.temp/

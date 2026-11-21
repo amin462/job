@@ -67,7 +67,14 @@ def db():
         status TEXT DEFAULT 'pending',            -- pending | ok | gone | error
         fetched_at TEXT, attempts INTEGER DEFAULT 0, jsonld TEXT);
     CREATE INDEX IF NOT EXISTS job_status ON job(status);
+    CREATE TABLE IF NOT EXISTS ref (kind TEXT, id TEXT, name TEXT, PRIMARY KEY (kind, id));
     """)
+    # added 2026-11-21 for stratified sampling: N_h per listing + each job's own stratum
+    for table, column in (("listing", "total INTEGER"), ("job", "province_id TEXT"), ("job", "jobtype_id TEXT")):
+        have = {r[1] for r in con.execute(f"PRAGMA table_info({table})")}
+        if column.split()[0] not in have:
+            con.execute(f"ALTER TABLE {table} ADD COLUMN {column}")
+    con.commit()
     return con
 
 
@@ -115,22 +122,83 @@ def load_listing_urls(con):
     log(f"loaded {len(urls)} listing urls (province, province x jobtype)")
 
 
+LISTING_DATA = re.compile(r'\{"data":\{"total":\d+,"data":\[')
+
+
+def _ref_id(obj):
+    """{'id': '59', 'name': 'สมุทรปราการ'} -> ('59', 'สมุทรปราการ'); missing -> (None, None)."""
+    if not isinstance(obj, dict) or obj.get("id") in (None, ""):
+        return None, None
+    return str(obj["id"]), obj.get("name")
+
+
+def parse_listing(body):
+    """Read one listing page (no extra request).
+
+    Returns (total, jobs, refs):
+      total = how many postings match this listing's filter (N_h for the stratum),
+      jobs  = [(job_id, province_id, jobtype_id)] - each job's own province and job type,
+      refs  = {('province'|'jobtype', id): name}.
+    Only ids and category codes are kept; company names and other fields are ignored.
+    """
+    total, jobs, refs = None, [], {}
+    m = LISTING_DATA.search(body)
+    if m:
+        try:
+            data = json.JSONDecoder().raw_decode(body, m.start())[0]["data"]
+            total = int(data["total"])
+            for item in data.get("data") or []:
+                if not isinstance(item, dict) or item.get("id") is None:
+                    continue
+                prov, prov_name = _ref_id(item.get("province"))
+                jt, jt_name = _ref_id(item.get("jobType"))
+                if prov:
+                    refs[("province", prov)] = prov_name
+                if jt:
+                    refs[("jobtype", jt)] = jt_name
+                jobs.append((str(item["id"]), prov, jt))
+        except (ValueError, KeyError, TypeError):
+            total, jobs, refs = None, [], {}
+    if total is None:
+        mt = re.search(r'"total"\s*:\s*(\d+)', body)
+        total = int(mt.group(1)) if mt else None
+    known = {j for j, _, _ in jobs}
+    for jid in dict.fromkeys(re.findall(r"/th/company/job/(\d+)", body)):
+        if jid not in known:
+            jobs.append((jid, None, None))
+    return total, jobs, refs
+
+
 def discover(con):
     load_listing_urls(con)
-    rows = con.execute("SELECT url FROM listing ORDER BY COALESCE(last_scanned,'') ASC").fetchall()
+    # listings still missing their total (N_h) first, then the least recently scanned
+    rows = con.execute(
+        "SELECT url FROM listing ORDER BY (total IS NULL) DESC, COALESCE(last_scanned,'') ASC"
+    ).fetchall()
     new_total = 0
     for i, (url,) in enumerate(rows, 1):
         body = polite_get(url)
         if body is None:
             continue
-        ids = list(dict.fromkeys(re.findall(r"/th/company/job/(\d+)", body)))
+        total, jobs, refs = parse_listing(body)
         t = now()
-        for jid in ids:
-            cur = con.execute("UPDATE job SET last_seen=? WHERE job_id=?", (t, jid))
+        for jid, prov, jt in jobs:
+            cur = con.execute(
+                "UPDATE job SET last_seen=?, province_id=COALESCE(?, province_id), "
+                "jobtype_id=COALESCE(?, jobtype_id) WHERE job_id=?",
+                (t, prov, jt, jid),
+            )
             if cur.rowcount == 0:
-                con.execute("INSERT INTO job(job_id, first_seen, last_seen, seen_in) VALUES (?,?,?,?)", (jid, t, t, url))
+                con.execute(
+                    "INSERT INTO job(job_id, first_seen, last_seen, seen_in, province_id, jobtype_id) "
+                    "VALUES (?,?,?,?,?,?)",
+                    (jid, t, t, url, prov, jt),
+                )
                 new_total += 1
-        con.execute("UPDATE listing SET last_scanned=?, last_count=? WHERE url=?", (t, len(ids), url))
+        con.executemany("INSERT OR REPLACE INTO ref(kind, id, name) VALUES (?,?,?)",
+                        [(k, rid, name) for (k, rid), name in refs.items()])
+        con.execute("UPDATE listing SET last_scanned=?, last_count=?, total=COALESCE(?, total) WHERE url=?",
+                    (t, len(jobs), total, url))
         con.commit()
         if i % 10 == 0:
             log(f"discover {i}/{len(rows)} listings | new ids so far {new_total}")
@@ -192,6 +260,9 @@ def stats(con):
     print(dict(con.execute("SELECT status, COUNT(*) FROM job GROUP BY status").fetchall()))
     print("listings scanned:", con.execute("SELECT COUNT(*) FROM listing WHERE last_scanned IS NOT NULL").fetchone()[0],
           "/", con.execute("SELECT COUNT(*) FROM listing").fetchone()[0])
+    print("listings with total (N_h):", con.execute("SELECT COUNT(*) FROM listing WHERE total IS NOT NULL").fetchone()[0],
+          "| jobs with province+jobtype:",
+          con.execute("SELECT COUNT(*) FROM job WHERE province_id IS NOT NULL AND jobtype_id IS NOT NULL").fetchone()[0])
 
 
 def flat(rec):
