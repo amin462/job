@@ -57,6 +57,14 @@
 
 ## 5. บันทึกงานที่ทำเสร็จแล้ว (Changelog)
 
+### 2026-11-21 (เย็น) — งานที่ 3: นำเข้าข้อมูลจริงเข้า Postgres staging (T1.5)
+- ปรับ `pipeline/scraper/load_staging.py` (ใช้ Postgres `unnest(...)` แบบ 1 roundtrip/batch แทนการยิงทีละแถว ทำให้ import 25k+ rows เสร็จใน ~1–2 นาที พร้อมตรวจรูปแบบวันที่ก่อนลง) และให้ `pipeline/scraper/import_sqlite.py` โหลด `.env` อัตโนมัติเมื่อไม่ระบุ `--sqlite-path`
+- รันเทสต์ `pytest pipeline/tests/test_import_sqlite.py pipeline/tests/test_scraper.py`: `36 passed`
+- รัน `.venv\Scripts\python.exe -X utf8 -m pipeline.scraper.import_sqlite` เข้า Supabase Postgres จริง 2 รอบติด:
+  - รอบแรก: JobThai `16,451` job ids (`291` ประกาศ ok, `0` parse_failed) + JobBKK `9,512` job ids (`0` ok) → `staging.scrape_run=6`, `staging.listing_seen=51,926`, `staging.job_posting_raw=291` (ตรวจ HR contact key ใน `payload` = `[]`)
+  - รอบสอง (idempotency check): `staging.scrape_run` คงที่ `6`, `staging.job_posting_raw` คงที่ `291` (`inserted=0, duplicates=291`), `listing_seen` เพิ่มเฉพาะ ID ใหม่ที่ harvester เพิ่งเจอระหว่างรัน (`+26` แถว เป็น `51,952`)
+- คง `T1.5` เป็น `[~]` เพราะ DoD ระบุโหลด `500` ประกาศ (ตอนนี้ harvester เพิ่งดึงรายละเอียดได้ `291` ประกาศ รอ harvester ดึงถึง `>= 500` แล้วรัน `import_sqlite` ซ้ำเพื่อปิด `[x]`)
+
 ### 2026-11-21 (เย็น) — งานที่ 2: ทดสอบสิทธิ์ REST และ RLS จริงบน Supabase (T3.8, T6.4)
 - สร้างสคริปต์อัตโนมัติ `pipeline/check_permissions.py` และรันตรวจเทียบสิทธิ์จริงกับ Supabase (`37/37 passed`):
   - **Postgres privileges & `SET LOCAL ROLE anon`:** `anon`/`authenticated` ไม่มีสิทธิ์ `USAGE` บน `staging`/`dw`/`ml` และอ่าน `mart.pipeline_status`/`mart.dq_summary` ไม่ได้ (`42501`), แต่อ่าน `mart.public_summary` ได้

@@ -32,11 +32,14 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 from urllib.parse import parse_qs, urlparse
+
+from dotenv import load_dotenv
 
 from pipeline.scraper.config import JOBBKK_DETAIL_URL, JOBTHAI_DETAIL_URL
 from pipeline.scraper.load_staging import StagingStore
@@ -325,6 +328,11 @@ def main(argv: list[str] | None = None) -> int:
     targets = [(p, s) for p, s in ((args.jobthai, "jobthai"), (args.jobbkk, "jobbkk")) if p.is_file()]
     if not targets:
         parser.error("no harvester SQLite file found (looked for --jobthai / --jobbkk)")
+
+    if args.sqlite_path is None and not os.getenv("DATABASE_URL"):
+        env_file = Path(__file__).resolve().parents[2] / ".env"
+        if env_file.exists():
+            load_dotenv(dotenv_path=env_file, override=False)
 
     store = StagingStore(sqlite_path=args.sqlite_path) if args.sqlite_path else StagingStore()
     try:

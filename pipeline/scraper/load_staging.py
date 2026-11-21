@@ -10,7 +10,7 @@ import argparse
 import json
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Sequence
 
@@ -95,6 +95,19 @@ def _assert_no_hr_keys(obj: Any) -> None:
     elif isinstance(obj, list):
         for item in obj:
             _assert_no_hr_keys(item)
+
+
+def _safe_iso_date(val: Any) -> str | None:
+    if not val:
+        return None
+    s = str(val).strip()[:10]
+    if not s:
+        return None
+    try:
+        date.fromisoformat(s)
+        return s
+    except ValueError:
+        return None
 
 
 class StagingStore:
@@ -334,20 +347,33 @@ class StagingStore:
         )
 
         if self.backend == "postgres":
+            # Deduplicate within batch on PK so ON CONFLICT DO UPDATE never hits the same row twice
+            deduped_seen: dict[tuple[int, str, str], tuple[int, str, str, str, str]] = {}
+            for row in rows_to_insert:
+                deduped_seen[(row[0], row[1], row[2])] = row
+            unique_rows = list(deduped_seen.values())
             with self._pg_conn.cursor() as cur:
                 cur.execute(
                     "SELECT COUNT(*) FROM staging.listing_seen WHERE scrape_run_id = %s",
                     (int(scrape_run_id),),
                 )
                 before_pg = int(cur.fetchone()[0])
-                cur.executemany(
+                cur.execute(
                     f"""
                     INSERT INTO staging.listing_seen
                         (scrape_run_id, source, source_job_id, stratum, seen_date)
-                    VALUES (%s, %s, %s, %s, %s)
+                    SELECT * FROM unnest(
+                        %s::bigint[], %s::text[], %s::text[], %s::text[], %s::date[]
+                    )
                     ON CONFLICT (scrape_run_id, source, source_job_id) {on_conflict}
                     """,
-                    rows_to_insert,
+                    (
+                        [r[0] for r in unique_rows],
+                        [r[1] for r in unique_rows],
+                        [r[2] for r in unique_rows],
+                        [r[3] for r in unique_rows],
+                        [r[4] for r in unique_rows],
+                    ),
                 )
                 cur.execute(
                     "SELECT COUNT(*) FROM staging.listing_seen WHERE scrape_run_id = %s",
@@ -470,8 +496,8 @@ class StagingStore:
                     rec.get("job_category"),
                     rec.get("industry"),
                     rec.get("employment_type"),
-                    rec.get("date_posted"),
-                    rec.get("valid_through"),
+                    _safe_iso_date(rec.get("date_posted")),
+                    _safe_iso_date(rec.get("valid_through")),
                     rec.get("company_name"),
                     payload_json,
                     str(rec["content_hash"]),
@@ -480,27 +506,30 @@ class StagingStore:
             )
 
         if self.backend == "postgres":
-            inserted = 0
             with self._pg_conn.cursor() as cur:
-                for row in prepared:
-                    cur.execute(
-                        """
-                        INSERT INTO staging.job_posting_raw (
-                            scrape_run_id, source, source_job_id, source_url,
-                            title, description, qualifications, salary_text,
-                            salary_min, salary_max, province, district,
-                            job_category, industry, employment_type,
-                            date_posted, valid_through, company_name,
-                            payload, content_hash, scraped_at
-                        ) VALUES (
-                            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                            %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s
-                        )
-                        ON CONFLICT (source, source_job_id, content_hash) DO NOTHING
-                        """,
-                        row,
+                cur.execute(
+                    """
+                    INSERT INTO staging.job_posting_raw (
+                        scrape_run_id, source, source_job_id, source_url,
+                        title, description, qualifications, salary_text,
+                        salary_min, salary_max, province, district,
+                        job_category, industry, employment_type,
+                        date_posted, valid_through, company_name,
+                        payload, content_hash, scraped_at
                     )
-                    inserted += cur.rowcount
+                    SELECT * FROM unnest(
+                        %s::bigint[], %s::text[], %s::text[], %s::text[],
+                        %s::text[], %s::text[], %s::text[], %s::text[],
+                        %s::numeric[], %s::numeric[], %s::text[], %s::text[],
+                        %s::text[], %s::text[], %s::text[],
+                        %s::date[], %s::date[], %s::text[],
+                        %s::jsonb[], %s::text[], %s::timestamptz[]
+                    )
+                    ON CONFLICT (source, source_job_id, content_hash) DO NOTHING
+                    """,
+                    tuple([r[i] for r in prepared] for i in range(21)),
+                )
+                inserted = max(0, int(cur.rowcount))
             self._pg_conn.commit()
             return {
                 "inserted": inserted,
