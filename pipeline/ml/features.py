@@ -21,6 +21,8 @@ from typing import Any, Iterable, Mapping
 import numpy as np
 import pandas as pd
 
+from pipeline.etl.enrich import ENRICH_COLUMNS, SENIORITY_UNKNOWN
+
 SALARY_MIN_THB = 5_000.0
 SALARY_MAX_THB = 500_000.0
 
@@ -30,7 +32,10 @@ CATEGORICAL_FEATURES: tuple[str, ...] = (
     "region",
     "experience_band",
     "education_level",
-    "employment_type",
+    # JSON-LD employmentType is FULL_TIME for every JobThai posting (no signal), so the
+    # type derived from the title/text is used instead (pipeline/etl/enrich.py)
+    "employment_type_derived",
+    "seniority_level",
     "industry",
 )
 
@@ -415,8 +420,9 @@ def build_feature_matrix(
             "sample_stratum",
             "sample_weight",
             "content_hash",
+            *ENRICH_COLUMNS,  # derived analysis columns; only ML_CATEGORICAL_ENRICH become features
         }
-        injected = [c for c in df.columns if c not in allowed_non_feature_df_cols and is_forbidden_feature_name(str(c))]
+        injected =[c for c in df.columns if c not in allowed_non_feature_df_cols and is_forbidden_feature_name(str(c))]
         if injected:
             raise ValueError(
                 f"Fairness/leakage violation (D6) in input DataFrame: forbidden column(s) {injected}"
@@ -449,6 +455,8 @@ def build_feature_matrix(
         "experience_band": "ไม่ระบุ/ไม่จำเป็น",
         "education_level": "ไม่ระบุ",
         "employment_type": "FULL_TIME",
+        "employment_type_derived": "full_time",
+        "seniority_level": SENIORITY_UNKNOWN,
         "industry": "อื่นๆ",
     }
     X_dict: dict[str, Any] = {}
@@ -617,6 +625,9 @@ def build_inference_dataframe(
             "experience_band": exp_band,
             "education_level": edu_level,
             "employment_type": emp_type,
+            # users pick these on the Salary page; unknown -> same defaults as training
+            "employment_type_derived": str(rec.get("employment_type_derived") or "full_time").strip() or "full_time",
+            "seniority_level": str(rec.get("seniority_level") or SENIORITY_UNKNOWN).strip() or SENIORITY_UNKNOWN,
             "industry": industry,
             "n_skills": n_skills,
             "education_rank": float(EDUCATION_RANK_MAP.get(edu_level, 0)),

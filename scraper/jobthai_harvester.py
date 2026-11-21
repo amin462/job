@@ -10,7 +10,12 @@ Commands
   python -X utf8 scraper/jobthai_harvester.py export    # write data/jobthai_jobs.csv + .jsonl
 
 Options (env vars): JT_DELAY=5 (seconds between requests, min 5 per AGENTS.md), JT_DB=data/jobthai.sqlite,
-  JT_REDISCOVER_HOURS=12 (how often `run` rescans listings for new postings)
+  JT_REDISCOVER_HOURS=12 (how often `run` rescans listings for new postings),
+  JT_EMPTY_RESCAN_DAYS=3 (listings that had 0 postings are rescanned only this often)
+
+Also kept (no extra requests): N_h per listing, each job's province/job type and a few
+listing flags (urgent, near BTS/MRT, industrial estate, ...), and from the job page the
+number of positions and the salary text -> stored in jsonld under "x_jobthai".
 
 Rules this script follows: only paths allowed by robots.txt, one request at a time,
 fixed delay + jitter, pause 60 min on HTTP 403/429/CAPTCHA and stop after 3 blocks in a row,
@@ -25,13 +30,16 @@ import re
 import sqlite3
 import sys
 import time
-from datetime import datetime, timezone
+from html.parser import HTMLParser
+from datetime import datetime, timedelta, timezone
 
 import requests
 
 DELAY = max(5.0, float(os.environ.get("JT_DELAY", "5")))  # AGENTS.md: >= 5 s
 DB = os.environ.get("JT_DB", "data/jobthai.sqlite")
 REDISCOVER_HOURS = float(os.environ.get("JT_REDISCOVER_HOURS", "12"))
+EMPTY_RESCAN_DAYS = float(os.environ.get("JT_EMPTY_RESCAN_DAYS", "3"))
+JITTER = 1.0  # seconds of random extra wait on top of DELAY (DELAY itself never goes below 5 s)
 UA = "Mozilla/5.0 (compatible; student-capstone-research/1.0)"
 SITEMAPS = [
     "https://www.jobthai.com/sitemap/location-and-jobtype/th/1.xml",
@@ -70,7 +78,8 @@ def db():
     CREATE TABLE IF NOT EXISTS ref (kind TEXT, id TEXT, name TEXT, PRIMARY KEY (kind, id));
     """)
     # added 2026-11-21 for stratified sampling: N_h per listing + each job's own stratum
-    for table, column in (("listing", "total INTEGER"), ("job", "province_id TEXT"), ("job", "jobtype_id TEXT")):
+    for table, column in (("listing", "total INTEGER"), ("job", "province_id TEXT"), ("job", "jobtype_id TEXT"),
+                          ("job", "listing_meta TEXT")):
         have = {r[1] for r in con.execute(f"PRAGMA table_info({table})")}
         if column.split()[0] not in have:
             con.execute(f"ALTER TABLE {table} ADD COLUMN {column}")
@@ -81,7 +90,7 @@ def db():
 def polite_get(url):
     """GET with delay; returns text or None (404/expired). Pauses on blocks."""
     global blocks_in_a_row
-    time.sleep(DELAY + random.uniform(0, DELAY * 0.5))
+    time.sleep(DELAY + random.uniform(0, JITTER))
     try:
         r = session.get(url, timeout=40)
     except requests.RequestException as e:
@@ -132,16 +141,36 @@ def _ref_id(obj):
     return str(obj["id"]), obj.get("name")
 
 
+def listing_flags(item):
+    """Small, non-personal facts the listing shows for a job (no company name, no address)."""
+    tags = " ".join(str(t) for t in (item.get("tags") or [])).lower()
+    industrial = item.get("industrial") or {}
+    disabled = item.get("disabledPerson") or {}
+    return {
+        "urgent": bool((item.get("urgent") or {}).get("id")),
+        "updated_at": item.get("updatedAt"),
+        "near_transit": bool(item.get("transitStations")),
+        "industrial_estate": industrial.get("name") if industrial.get("id") else None,
+        "disabled_person": disabled.get("name"),
+        "online_interview": "online" in tags or "ออนไลน์" in tags,
+        "district_id": str((item.get("district") or {}).get("id") or "") or None,
+        "salary_text_listing": item.get("salary"),
+        # every field the listing shows for this job (company-level only, no personal data)
+        "listing": scrub_obj(item),
+    }
+
+
 def parse_listing(body):
     """Read one listing page (no extra request).
 
-    Returns (total, jobs, refs):
+    Returns (total, jobs, refs, flags):
       total = how many postings match this listing's filter (N_h for the stratum),
       jobs  = [(job_id, province_id, jobtype_id)] - each job's own province and job type,
-      refs  = {('province'|'jobtype', id): name}.
-    Only ids and category codes are kept; company names and other fields are ignored.
+      refs  = {('province'|'jobtype', id): name},
+      flags = {job_id: listing_flags(...)}.
+    Company names and other fields are ignored.
     """
-    total, jobs, refs = None, [], {}
+    total, jobs, refs, flags = None, [], {}, {}
     m = LISTING_DATA.search(body)
     if m:
         try:
@@ -157,8 +186,9 @@ def parse_listing(body):
                 if jt:
                     refs[("jobtype", jt)] = jt_name
                 jobs.append((str(item["id"]), prov, jt))
+                flags[str(item["id"])] = listing_flags(item)
         except (ValueError, KeyError, TypeError):
-            total, jobs, refs = None, [], {}
+            total, jobs, refs, flags = None, [], {}, {}
     if total is None:
         mt = re.search(r'"total"\s*:\s*(\d+)', body)
         total = int(mt.group(1)) if mt else None
@@ -166,33 +196,39 @@ def parse_listing(body):
     for jid in dict.fromkeys(re.findall(r"/th/company/job/(\d+)", body)):
         if jid not in known:
             jobs.append((jid, None, None))
-    return total, jobs, refs
+    return total, jobs, refs, flags
 
 
 def discover(con):
     load_listing_urls(con)
     # listings still missing their total (N_h) first, then the least recently scanned
     rows = con.execute(
-        "SELECT url FROM listing ORDER BY (total IS NULL) DESC, COALESCE(last_scanned,'') ASC"
+        "SELECT url, total, last_scanned FROM listing ORDER BY (total IS NULL) DESC, COALESCE(last_scanned,'') ASC"
     ).fetchall()
-    new_total = 0
-    for i, (url,) in enumerate(rows, 1):
+    # listings that were empty (N_h = 0) a short while ago are not worth a request every round
+    empty_cutoff = (datetime.now(timezone.utc) - timedelta(days=EMPTY_RESCAN_DAYS)).isoformat(timespec="seconds")
+    new_total = skipped = 0
+    for i, (url, last_total, last_scanned) in enumerate(rows, 1):
+        if last_total == 0 and last_scanned and last_scanned > empty_cutoff:
+            skipped += 1
+            continue
         body = polite_get(url)
         if body is None:
             continue
-        total, jobs, refs = parse_listing(body)
+        total, jobs, refs, flags = parse_listing(body)
         t = now()
         for jid, prov, jt in jobs:
+            meta = json.dumps(flags[jid], ensure_ascii=False) if jid in flags else None
             cur = con.execute(
                 "UPDATE job SET last_seen=?, province_id=COALESCE(?, province_id), "
-                "jobtype_id=COALESCE(?, jobtype_id) WHERE job_id=?",
-                (t, prov, jt, jid),
+                "jobtype_id=COALESCE(?, jobtype_id), listing_meta=COALESCE(?, listing_meta) WHERE job_id=?",
+                (t, prov, jt, meta, jid),
             )
             if cur.rowcount == 0:
                 con.execute(
-                    "INSERT INTO job(job_id, first_seen, last_seen, seen_in, province_id, jobtype_id) "
-                    "VALUES (?,?,?,?,?,?)",
-                    (jid, t, t, url, prov, jt),
+                    "INSERT INTO job(job_id, first_seen, last_seen, seen_in, province_id, jobtype_id, listing_meta) "
+                    "VALUES (?,?,?,?,?,?,?)",
+                    (jid, t, t, url, prov, jt, meta),
                 )
                 new_total += 1
         con.executemany("INSERT OR REPLACE INTO ref(kind, id, name) VALUES (?,?,?)",
@@ -203,7 +239,7 @@ def discover(con):
         if i % 10 == 0:
             log(f"discover {i}/{len(rows)} listings | new ids so far {new_total}")
     con.commit()
-    log(f"discover done: {new_total} new job ids")
+    log(f"discover done: {new_total} new job ids ({skipped} recently empty listings skipped)")
 
 
 def extract_jobposting(html):
@@ -227,6 +263,89 @@ def extract_jobposting(html):
     return None
 
 
+class _JobFields(HTMLParser):
+    """Text of every element whose id starts with "job-" (nested markup handled);
+    "job-card-*" are other postings shown on the page and are skipped."""
+
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.stack, self.open, self.fields = [], [], {}
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.VOID:
+            return
+        self.stack.append(tag)
+        el_id = dict(attrs).get("id") or ""
+        if (el_id.startswith("job-") and not el_id.startswith("job-card-")
+                and not re.search(r"-\d+$", el_id)  # job-position-3, job-detail-1987020 = other postings
+                and el_id not in self.fields):
+            self.fields[el_id] = []
+            self.open.append((el_id, len(self.stack)))
+
+    def handle_endtag(self, tag):
+        if tag in self.VOID or tag not in self.stack:
+            return
+        while self.stack:
+            if self.stack.pop() == tag:
+                break
+        self.open = [(k, d) for k, d in self.open if d <= len(self.stack)]
+
+    def handle_data(self, data):
+        for k, _ in self.open:
+            self.fields[k].append(data)
+EMAIL_RX = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+PHONE_RX = re.compile(r"(?<!\d)(?:\+?66[\s-]?|0)\d{1,2}[\s-]?\d{3}[\s-]?\d{3,4}(?!\d)")
+LINE_RX = re.compile(r"(?i)(line\s*(?:id)?\s*[:：]?\s*)@?[\w.-]{3,}")
+
+
+def scrub_text(text):
+    """PDPA: drop e-mail addresses, phone numbers and LINE ids from free text."""
+    if not isinstance(text, str):
+        return text
+    text = EMAIL_RX.sub("[email]", text)
+    text = LINE_RX.sub(r"\1[line]", text)
+    return PHONE_RX.sub("[phone]", text)
+
+
+def scrub_obj(o):
+    if isinstance(o, dict):
+        return {k: scrub_obj(v) for k, v in o.items() if k not in PII_KEYS}
+    if isinstance(o, list):
+        return [scrub_obj(v) for v in o]
+    return scrub_text(o)
+
+
+def parse_detail_extras(html):
+    """All job-* fields of the job page (salary text, positions, update date, company
+    detail, directions, ...) as plain text, PDPA-scrubbed; positions also as a number."""
+    parser = _JobFields()
+    try:
+        parser.feed(html)
+    except Exception:  # never let one odd page stop the harvest
+        pass
+    out = {}
+    for key, parts in parser.fields.items():
+        name = key[4:].replace("-", "_")  # job-number-of-position -> number_of_position
+        if name == "title":
+            continue
+        text = re.sub(r"\s+", " ", " ".join(parts)).strip()
+        if text:
+            out[name] = scrub_text(text)
+    if "number_of_position" in out:
+        out["positions_text"] = out.pop("number_of_position")
+        m = re.search(r"\d+", out["positions_text"].replace(",", ""))
+        out["positions"] = int(m.group()) if m else None
+    if "salary" in out:
+        out["salary_text"] = out.pop("salary")
+    if "detail" in out:
+        out["company_detail"] = out.pop("detail")   # "about the company" block
+    if "direction" in out:
+        out["directions"] = out.pop("direction")    # how to get there (transport), scrubbed
+    return out
+
+
 def strip_pii(o):
     if isinstance(o, dict):
         return {k: strip_pii(v) for k, v in o.items() if k not in PII_KEYS}
@@ -236,16 +355,28 @@ def strip_pii(o):
 
 
 def fetch(con, limit=None):
-    q = "SELECT job_id FROM job WHERE status='pending' OR (status='error' AND attempts<3) ORDER BY first_seen DESC"
+    q = ("SELECT job_id FROM job WHERE status='pending' OR (status='error' AND attempts<3) "
+         # rows fetched before 2026-11-21 lack x_jobthai -> fetch again so all rows have the same columns
+         "OR (status='ok' AND instr(COALESCE(jsonld,''), '\"x_jobthai\"') = 0) "
+         "ORDER BY (status='ok') DESC, first_seen DESC")
     ids = [r[0] for r in con.execute(q).fetchall()][: limit or None]
     log(f"fetching {len(ids)} job pages (about {len(ids) * DELAY * 1.25 / 3600:.1f} h)")
     for i, jid in enumerate(ids, 1):
         html = polite_get(f"https://www.jobthai.com/th/company/job/{jid}")
-        if html is None:
+        was_ok = con.execute("SELECT status FROM job WHERE job_id=?", (jid,)).fetchone()[0] == "ok"
+        rec = extract_jobposting(html) if html is not None else None
+        if rec is None and was_ok:
+            # re-fetch failed (posting closed): keep the data we already have, mark the extras unavailable
+            con.execute("UPDATE job SET jsonld=json_set(jsonld, '$.x_jobthai', json('{\"unavailable\": true}')), "
+                        "attempts=attempts+1 WHERE job_id=?", (jid,))
+        elif html is None:
             con.execute("UPDATE job SET status='gone', attempts=attempts+1 WHERE job_id=?", (jid,))
         else:
-            rec = extract_jobposting(html)
             if rec:
+                fill_stratum_from_posting(con, jid, rec)
+                row = con.execute("SELECT listing_meta FROM job WHERE job_id=?", (jid,)).fetchone()
+                listing_meta = json.loads(row[0]) if row and row[0] else {}
+                rec["x_jobthai"] = {**listing_meta, **parse_detail_extras(html)}
                 con.execute("UPDATE job SET status='ok', fetched_at=?, jsonld=?, attempts=attempts+1 WHERE job_id=?",
                             (now(), json.dumps(rec, ensure_ascii=False), jid))
             else:
@@ -254,6 +385,20 @@ def fetch(con, limit=None):
             con.commit()
             log(f"fetch {i}/{len(ids)}")
     con.commit()
+
+
+def fill_stratum_from_posting(con, jid, rec):
+    """Province / job type ids from the posting's own addressRegion / occupationalCategory names
+    (for ids found before listing data was kept, or seen only as links)."""
+    loc = rec.get("jobLocation") or {}
+    loc = loc[0] if isinstance(loc, list) and loc else loc
+    region = ((loc or {}).get("address") or {}).get("addressRegion")
+    cat = rec.get("occupationalCategory")
+    cat = cat[0] if isinstance(cat, list) and cat else cat
+    pid = con.execute("SELECT id FROM ref WHERE kind='province' AND name=?", (region,)).fetchone()
+    tid = con.execute("SELECT id FROM ref WHERE kind='jobtype' AND name=?", (cat,)).fetchone()
+    con.execute("UPDATE job SET province_id=COALESCE(province_id, ?), jobtype_id=COALESCE(jobtype_id, ?) "
+                "WHERE job_id=?", (pid[0] if pid else None, tid[0] if tid else None, jid))
 
 
 def stats(con):
@@ -278,6 +423,9 @@ def flat(rec):
         "valid_through": (rec.get("validThrough") or "")[:10], "salary_min": sal.get("minValue"),
         "salary_max": sal.get("maxValue"), "salary_unit": sal.get("unitText"),
         "description": rec.get("description"), "qualifications": rec.get("qualifications"),
+        "positions": (rec.get("x_jobthai") or {}).get("positions"),
+        "salary_text": (rec.get("x_jobthai") or {}).get("salary_text"),
+        "urgent": (rec.get("x_jobthai") or {}).get("urgent"),
     }
 
 
@@ -308,8 +456,22 @@ def run_forever(con):
         time.sleep(REDISCOVER_HOURS * 3600)
 
 
+def keep_awake():
+    """Ask Windows not to go to sleep while this process runs (released automatically on exit).
+    Same request a video player makes; it does not change any power setting. Closing the
+    laptop lid can still put it to sleep."""
+    if os.name == "nt":
+        try:
+            import ctypes
+            ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000001)  # CONTINUOUS | SYSTEM_REQUIRED
+        except Exception:
+            pass
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "run"
+    if cmd == "run":
+        keep_awake()
     con = db()
     try:
         {"run": run_forever, "discover": discover, "fetch": fetch, "stats": stats, "export": export}[cmd](con)

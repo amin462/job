@@ -216,8 +216,22 @@ def run_forever(con):
         time.sleep(REDISCOVER_HOURS * 3600)
 
 
+def keep_awake():
+    """Ask Windows not to go to sleep while this process runs (released automatically on exit).
+    Same request a video player makes; it does not change any power setting. Closing the
+    laptop lid can still put it to sleep."""
+    if os.name == "nt":
+        try:
+            import ctypes
+            ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000001)  # CONTINUOUS | SYSTEM_REQUIRED
+        except Exception:
+            pass
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "run"
+    if cmd == "run":
+        keep_awake()
     con = db()
     try:
         {"run": run_forever, "discover": discover, "fetch": fetch, "stats": stats, "export": export}[cmd](con)

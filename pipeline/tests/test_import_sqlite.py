@@ -206,7 +206,9 @@ LISTING_BODY = (
     '<script>{"ROOT_QUERY":{"searchJobs({\\"filter\\":{\\"province\\":\\"57\\",\\"jobtype\\":\\"4\\"}})":'
     '{"data":{"total":137,"data":['
     '{"id":2001,"companyID":1,"jobTitle":"x","companyName":"ACME","province":{"id":"57","name":"สงขลา"},'
-    '"jobType":{"id":4,"name":"งานขาย"}},'
+    '"jobType":{"id":4,"name":"งานขาย"},"urgent":{"id":1,"name":"รับสมัครด่วน"},'
+    '"transitStations":[{"id":1,"name":"BTS"}],"tags":["Online Interview"],"district":{"id":"5701","name":"x"},'
+    '"salary":"15,000 - 20,000 บาท","updatedAt":"2026-11-21T01:00:00.000Z"},'
     '{"id":2002,"companyID":2,"jobTitle":"y","companyName":"B","province":{"id":"57","name":"สงขลา"},'
     '"jobType":{"id":28,"name":"งานวิศวกรรม"}}'
     ']}}}}</script><a href="/th/company/job/2003">z</a>'
@@ -219,13 +221,53 @@ def _harvester():
 
 
 def test_parse_listing_reads_total_and_each_jobs_stratum() -> None:
-    total, jobs, refs = _harvester().parse_listing(LISTING_BODY)
+    total, jobs, refs, flags = _harvester().parse_listing(LISTING_BODY)
     assert total == 137
     assert jobs == [("2001", "57", "4"), ("2002", "57", "28"), ("2003", None, None)]
     assert refs[("province", "57")] == "สงขลา" and refs[("jobtype", "4")] == "งานขาย"
-    # nothing but ids/codes/names of categories is returned (no company names)
+    f = flags["2001"]
+    assert f["urgent"] is True and f["near_transit"] is True and f["online_interview"] is True
+    assert f["district_id"] == "5701" and f["salary_text_listing"] == "15,000 - 20,000 บาท"
+    assert flags["2002"]["urgent"] is False and "2003" not in flags
+    # the full listing record is kept (company-level data is not personal data) ...
+    assert f["listing"]["companyName"] == "ACME" and f["listing"]["jobType"]["id"] == 4
+    # ... but company names never end up in the stratum/category tables
     assert "ACME" not in repr((jobs, refs))
-    assert _harvester().parse_listing("<html>no data</html>") == (None, [], {})
+    assert _harvester().parse_listing("<html>no data</html>") == (None, [], {}, {})
+
+
+def test_parse_detail_extras_positions_and_salary_text() -> None:
+    h = _harvester()
+    html = ('<img alt="number of positions icon"/><span>อัตรา</span></div>'
+            '<span id="job-number-of-position" class="text-base">2 อัตรา</span>'
+            '<span id="job-salary" class="x">ตามโครงสร้างบริษัทฯ</span>')
+    assert h.parse_detail_extras(html) == {
+        "positions_text": "2 อัตรา", "positions": 2, "salary_text": "ตามโครงสร้างบริษัทฯ"}
+    many = '<span id="job-number-of-position">หลายอัตรา</span>'
+    assert h.parse_detail_extras(many) == {"positions_text": "หลายอัตรา", "positions": None}
+    assert h.parse_detail_extras("<html></html>") == {}
+
+
+def test_discover_skips_recently_empty_listings(tmp_path: Path, monkeypatch) -> None:
+    h = _harvester()
+    db = tmp_path / "jobthai.sqlite"
+    monkeypatch.setattr(h, "DB", str(db))
+    con = h.db()
+    fresh = h.now()
+    con.executemany("INSERT INTO listing(url, last_scanned, total) VALUES (?,?,?)", [
+        ("https://www.jobthai.com/th/jobs?province=25&jobtype=38", fresh, 0),          # empty, just scanned -> skip
+        ("https://www.jobthai.com/th/jobs?province=25&jobtype=37", "2026-01-01T00:00:00+00:00", 0),  # empty, old
+        ("https://www.jobthai.com/th/jobs?province=57&jobtype=4", fresh, 137),        # has postings
+    ])
+    con.commit()
+    asked = []
+    monkeypatch.setattr(h, "polite_get", lambda url: asked.append(url) or LISTING_BODY)
+    h.discover(con)
+    assert "https://www.jobthai.com/th/jobs?province=25&jobtype=38" not in asked
+    assert len(asked) == 2
+    row = con.execute("SELECT province_id, jobtype_id, listing_meta FROM job WHERE job_id='2001'").fetchone()
+    assert row[0] == "57" and row[1] == "4" and json.loads(row[2])["urgent"] is True
+    con.close()
 
 
 def test_harvester_db_upgrades_old_schema_in_place(tmp_path: Path, monkeypatch) -> None:
@@ -235,7 +277,7 @@ def test_harvester_db_upgrades_old_schema_in_place(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(h, "DB", str(old))
     con = h.db()
     assert "total" in {r[1] for r in con.execute("PRAGMA table_info(listing)")}
-    assert {"province_id", "jobtype_id"} <= {r[1] for r in con.execute("PRAGMA table_info(job)")}
+    assert {"province_id", "jobtype_id", "listing_meta"} <= {r[1] for r in con.execute("PRAGMA table_info(job)")}
     assert con.execute("SELECT COUNT(*) FROM job").fetchone()[0] == 4  # data kept
     con.close()
 
@@ -301,3 +343,26 @@ def test_province_totals_not_written_until_every_province_has_a_total(tmp_path: 
     assert res["listings_without_total"] == {"strata": 0, "provinces": 1}
     assert res["files"] == ["jobthai_strata.csv"]
     assert not (tmp_path / "processed" / "jobthai_province_totals.csv").exists()
+
+
+def test_pdpa_scrub_of_extra_text_fields() -> None:
+    h = _harvester()
+    t = h.scrub_text("ติดต่อ 081-234-5678, 02 123 4567, hr@abc.co.th, Line ID: hr_abc เงินเดือน 15,000 บาท 2026-11-18")
+    assert "081" not in t and "123 4567" not in t and "hr@abc" not in t and "hr_abc" not in t
+    assert "15,000" in t and "2026-11-18" in t
+    item = {"companyName": "X", "telephone": "081", "contactPoint": {"email": "a@b.co"}, "workLocation": "โทร 0812345678"}
+    clean = h.scrub_obj(item)
+    assert "telephone" not in clean and "contactPoint" not in clean and "0812345678" not in clean["workLocation"]
+
+
+def test_detail_extras_skip_other_postings_on_the_page() -> None:
+    h = _harvester()
+    html = ('<div id="job-detail"><p>บริษัทผลิต <b>อาหาร</b></p><p>โทร 081-111-2222</p></div>'
+            '<span id="job-number-of-position">3 อัตรา</span>'
+            '<div id="job-position-1"><span>งานอื่น</span></div>'
+            '<a id="job-detail-1987020">ดูรายละเอียดงาน</a>'
+            '<span id="job-card-title-5">x</span>')
+    out = h.parse_detail_extras(html)
+    assert out["company_detail"] == "บริษัทผลิต อาหาร โทร [phone]"
+    assert out["positions"] == 3
+    assert not any(k.startswith(("position_", "detail_", "card_")) for k in out)

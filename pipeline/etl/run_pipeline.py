@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from pipeline.etl.build_marts import build_all_marts, write_seed_marts
+from pipeline.etl.enrich import ENRICH_COLUMNS, days_between, enrich_fields
 from pipeline.etl.clean import (
     clean_html_text,
     detect_gender_age_mentions,
@@ -92,6 +93,7 @@ CLEAN_CSV_COLUMNS: list[str] = [
     "experience_band",
     "n_skills",
     "skills",
+    *ENRICH_COLUMNS,  # derived columns, see pipeline/etl/enrich.py and docs/data-dictionary.md
     "sample_stratum",
     "sample_weight",
     "mentions_gender",
@@ -231,6 +233,7 @@ def parse_raw_directories(raw_dirs: list[Path]) -> tuple[list[dict[str, Any]], i
                 "edu_structured": edu_cred,
                 "exp_months_structured": exp_months,
                 "content_hash": content_hash,
+                "payload": item,  # PII-stripped JSON-LD, used by enrich_fields()
             }
 
     return list(deduped.values()), n_files, n_failed
@@ -331,6 +334,7 @@ def load_raw_from_postgres(
                         "edu_structured": edu_cred,
                         "exp_months_structured": exp_months,
                         "content_hash": str(content_hash),
+                        "payload": item,  # PII-stripped JSON-LD incl. x_jobthai, used by enrich_fields()
                     }
                 )
 
@@ -429,6 +433,13 @@ def process_postings(
                 "mentions_gender": mentions_gender,
                 "mentions_age": mentions_age,
                 "content_hash": rec["content_hash"],
+                **enrich_fields(
+                    title=title,
+                    description=desc,
+                    qualifications=qual,
+                    payload=rec.get("payload"),
+                    has_numeric_salary=sal.salary_mid is not None,
+                ),
             }
         )
 
@@ -441,6 +452,12 @@ def process_postings(
         default_seen_date=default_seen,
         strata_csv=strata_csv,
     )
+    for row in cleaned_rows:  # how long the posting stayed listed (needs the seen dates set above)
+        f, l = row.get("first_seen_date_key"), row.get("last_seen_date_key")
+        row["days_listed"] = (
+            days_between(f"{str(f)[:4]}-{str(f)[4:6]}-{str(f)[6:8]}", f"{str(l)[:4]}-{str(l)[4:6]}-{str(l)[6:8]}")
+            if f and l else None
+        )
     pending_aliases = extractor.discover_pending_aliases(corpus_texts, top_n=100, min_freq=2, min_similarity=0.4)
     return cleaned_rows, pending_aliases, stratum_pop
 
