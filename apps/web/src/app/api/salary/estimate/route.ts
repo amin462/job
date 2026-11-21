@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { loadSeedMarts } from "@/lib/data";
+import { getSalaryFallbackContext } from "@/lib/data";
 import { FORBIDDEN_ML_FAIRNESS_KEYS } from "@/lib/compliance";
 import type {
   SalaryEstimateResponse,
@@ -185,12 +185,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const seed = loadSeedMarts();
-  const locMeta = seed.dim_locations.find((l) => l.province_th === province_th);
+  const fallbackCtx = await getSalaryFallbackContext();
+  const locMeta = fallbackCtx.dimLocations.find(
+    (l) => l.province_th === province_th
+  );
   const region = String(body.region || locMeta?.region || "ทั้งประเทศ");
 
   const { url, key, valid } = getMlConfig();
-  const championRow = seed.ml_leaderboard.find(
+  const championRow = fallbackCtx.mlLeaderboard.find(
     (r) => r.is_summary && r.is_champion
   );
 
@@ -294,7 +296,7 @@ export async function POST(request: NextRequest) {
 
   // Fallback 1: mart.salary_prediction (precomputed Champion predictions)
   const predRow = findBestPredictionFallback(
-    seed.salary_prediction || [],
+    fallbackCtx.salaryPrediction,
     occupation_cluster,
     province_th,
     region,
@@ -305,7 +307,7 @@ export async function POST(request: NextRequest) {
   if (predRow) {
     const baseP50 = Math.round(predRow.pred_p50);
     const uplifts: SkillUpliftItem[] = candidate_skills.map((sk, idx) => {
-      const occSkill = seed.occupation_skill_profile.find(
+      const occSkill = fallbackCtx.occupationSkillProfile.find(
         (r) =>
           r.occupation_cluster === occupation_cluster &&
           r.skill_canonical === sk
@@ -340,7 +342,7 @@ export async function POST(request: NextRequest) {
 
   // Fallback 2: mart.salary_stats median
   const statRow = findBestSalaryStats(
-    seed.salary_stats || [],
+    fallbackCtx.salaryStats,
     occupation_cluster,
     province_th,
     region,
@@ -352,7 +354,7 @@ export async function POST(request: NextRequest) {
   const p75 = Math.round(statRow?.salary_p75 ?? 23000);
 
   const uplifts: SkillUpliftItem[] = candidate_skills.map((sk, idx) => {
-    const occSkill = seed.occupation_skill_profile.find(
+    const occSkill = fallbackCtx.occupationSkillProfile.find(
       (r) =>
         r.occupation_cluster === occupation_cluster && r.skill_canonical === sk
     );

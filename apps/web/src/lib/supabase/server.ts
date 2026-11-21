@@ -1,6 +1,18 @@
+import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseEnv, isSupabaseConfigured } from "./config";
+
+/** Stateless public/anon Supabase client for reading public `mart.*` views and RPCs. */
+export function createSupabasePublicClient() {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+  const { url, anonKey } = getSupabaseEnv();
+  return createClient(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
 
 export async function createSupabaseServerClient() {
   if (!isSupabaseConfigured()) {

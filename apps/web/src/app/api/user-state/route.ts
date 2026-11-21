@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getCurrentSession, getDemoStore } from "@/lib/auth";
 import { checkProfileRoleUpdateAllowed } from "@/lib/compliance";
-import { loadSeedMarts } from "@/lib/data";
+import { getPublicDimSkills } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { DEMO_SESSION_COOKIE } from "@/lib/supabase/middleware";
@@ -21,7 +21,6 @@ export async function POST(request: NextRequest) {
   }
 
   const action = String(body.action || "");
-  const seed = loadSeedMarts();
   const store = getDemoStore();
 
   // 1. Profile / Onboarding Update (strictly blocks self-elevation to admin)
@@ -78,7 +77,8 @@ export async function POST(request: NextRequest) {
   if (action === "upsert_skill") {
     const skillKey = Number(body.skill_key);
     const level = Math.min(3, Math.max(1, Number(body.level || 2))) as 1 | 2 | 3;
-    const meta = seed.dim_skills.find((s) => s.skill_key === skillKey);
+    const dimSkills = await getPublicDimSkills();
+    const meta = dimSkills.find((s) => s.skill_key === skillKey);
     if (!meta) {
       return NextResponse.json({ error: "Skill not found" }, { status: 404 });
     }
@@ -280,11 +280,12 @@ export async function POST(request: NextRequest) {
       ? (body.rows as Array<{ course: string; skill: string }>)
       : [];
 
+    const dimSkills = await getPublicDimSkills();
     const matchedEntries: Array<{ course_name: string; skill_key: number }> = [];
     for (const r of rows) {
       const q = String(r.skill || "").trim().toLowerCase();
       const courseName = String(r.course || "").trim() || "รายวิชาที่นำเข้า";
-      const found = seed.dim_skills.find(
+      const found = dimSkills.find(
         (sk) =>
           sk.skill_canonical.toLowerCase() === q ||
           sk.skill_name_th.toLowerCase() === q ||

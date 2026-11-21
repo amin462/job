@@ -65,7 +65,7 @@
 - [~] **T5.1 (M)** scaffold Next.js + Tailwind v4 + shadcn + `globals.css` (tokens + glass + fallback) · DoD: หน้า style guide แสดงการ์ดแก้ว/ทึบ
 - [~] **T5.2 (M)** ธีม ECharts `skillbi` + `ChartSurface` + ปุ่ม "ดูเป็นตาราง" + `ProvenanceBadge` · DoD: กราฟตัวอย่าง 3 แบบผ่าน contrast
 - [~] **T5.3 (M)** `AppShell` (sidebar/bottom tab, Context Bar), i18n TH/EN, middleware ตาม role
-- [~] **T5.4 (M)** Supabase client ฝั่ง server + helper อ่าน `mart.*` + สถานะ loading/empty/error มาตรฐาน
+- [x] **T5.4 (M)** Supabase client ฝั่ง server + helper อ่าน `mart.*` + สถานะ loading/empty/error มาตรฐาน
 ### 5B หน้า (ดู FRONTEND_SPEC §3)
 - [~] **T5.5 (M)** Landing `/` (KPI จาก `mart.public_summary` ⟨v4.1⟩ + calendar + top skills) · รอ T3.5
 - [~] **T5.6 (M)** Market Explorer `/market` (ranked bars, Sankey, small multiples, volume + slider)

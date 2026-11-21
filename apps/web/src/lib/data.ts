@@ -26,14 +26,22 @@ import type {
   UserSkill,
 } from "@/types/marts";
 import { isSupabaseConfigured } from "./supabase/config";
-import { createSupabaseServerClient } from "./supabase/server";
+import {
+  createSupabasePublicClient,
+  createSupabaseServerClient,
+} from "./supabase/server";
 import {
   applyDemoAliasOverrides,
   getDemoStore,
   getDemoUserCurricula,
   getDemoUserSkills,
 } from "./auth";
-import { checkRouteAccess } from "./compliance";
+import {
+  FORBIDDEN_POSTING_TEXT_KEYS,
+  MIN_PUBLIC_N,
+  checkRouteAccess,
+  isSafeExternalJobUrl,
+} from "./compliance";
 
 let cachedSeed: { mtimeMs: number; data: SeedMartsData } | null = null;
 
@@ -98,21 +106,170 @@ export function loadSeedMarts(): SeedMartsData {
   return parsed;
 }
 
+const FORBIDDEN_KEY_SET = new Set<string>(FORBIDDEN_POSTING_TEXT_KEYS);
+
+function stripForbiddenMartFields<T>(row: T): T {
+  if (!row || typeof row !== "object" || Array.isArray(row)) return row;
+  const clean: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(row as Record<string, unknown>)) {
+    if (!FORBIDDEN_KEY_SET.has(k)) {
+      clean[k] = v;
+    }
+  }
+  return clean as T;
+}
+
+function sanitizePublicSummary(s: PublicSummary): PublicSummary {
+  const clean = stripForbiddenMartFields(s);
+  if (clean.n_postings < MIN_PUBLIC_N) {
+    return {
+      ...clean,
+      pct_with_salary: null,
+      pct_with_skills: null,
+      avg_skills_per_posting: null,
+    };
+  }
+  return clean;
+}
+
+function sanitizeWeeklyRows(rows: SkillDemandWeeklyRow[]): SkillDemandWeeklyRow[] {
+  return rows.map((raw) => {
+    const r = stripForbiddenMartFields(raw);
+    const suppressed =
+      Boolean(r.is_suppressed) ||
+      r.n_postings < MIN_PUBLIC_N ||
+      r.n_scope_postings < MIN_PUBLIC_N;
+    const newSuppressed =
+      r.n_new_postings < MIN_PUBLIC_N || r.n_scope_postings < MIN_PUBLIC_N;
+    return {
+      ...r,
+      is_suppressed: suppressed,
+      weighted_active_sum: suppressed ? null : r.weighted_active_sum,
+      weighted_share: suppressed ? null : r.weighted_share,
+      weighted_new_sum: newSuppressed ? null : r.weighted_new_sum,
+      weighted_new_share: newSuppressed ? null : r.weighted_new_share,
+    };
+  });
+}
+
+function sanitizeOccProfileRows(
+  rows: OccupationSkillProfileRow[]
+): OccupationSkillProfileRow[] {
+  return rows.map((raw) => {
+    const r = stripForbiddenMartFields(raw);
+    const suppressed =
+      Boolean(r.is_suppressed) ||
+      r.n_postings < MIN_PUBLIC_N ||
+      r.n_occ_postings < MIN_PUBLIC_N;
+    return {
+      ...r,
+      is_suppressed: suppressed,
+      weighted_share: suppressed ? null : r.weighted_share,
+      raw_share: suppressed ? null : r.raw_share,
+    };
+  });
+}
+
+function sanitizeCurriculumRefRows(
+  rows: CurriculumCoverageRefRow[]
+): CurriculumCoverageRefRow[] {
+  return rows.map((raw) => {
+    const r = stripForbiddenMartFields(raw);
+    const suppressed =
+      Boolean(r.is_suppressed) ||
+      r.n_postings < MIN_PUBLIC_N ||
+      r.n_occ_postings < MIN_PUBLIC_N;
+    return {
+      ...r,
+      is_suppressed: suppressed,
+      weighted_share: suppressed ? null : r.weighted_share,
+      importance_weight: suppressed ? null : r.importance_weight,
+    };
+  });
+}
+
+function sanitizeSalaryStatsRows(rows: SalaryStatsRow[]): SalaryStatsRow[] {
+  return rows.map((raw) => {
+    const r = stripForbiddenMartFields(raw);
+    const suppressed = Boolean(r.is_suppressed) || r.n_postings < MIN_PUBLIC_N;
+    return {
+      ...r,
+      is_suppressed: suppressed,
+      salary_p25: suppressed ? null : r.salary_p25,
+      salary_p50: suppressed ? null : r.salary_p50,
+      salary_p75: suppressed ? null : r.salary_p75,
+      salary_mean: suppressed ? null : r.salary_mean,
+      salary_min_obs: suppressed ? null : r.salary_min_obs,
+      salary_max_obs: suppressed ? null : r.salary_max_obs,
+    };
+  });
+}
+
+function sanitizeVolumeDailyRows(
+  rows: PostingVolumeDailyRow[]
+): PostingVolumeDailyRow[] {
+  return rows.map((raw) => {
+    const r = stripForbiddenMartFields(raw);
+    const suppressed = Boolean(r.is_suppressed) || r.n_postings < MIN_PUBLIC_N;
+    return {
+      ...r,
+      is_suppressed: suppressed,
+      weighted_volume: suppressed ? null : r.weighted_volume,
+      salary_share: suppressed ? null : r.salary_share,
+    };
+  });
+}
+
+function sanitizeCooccurrenceRows(
+  rows: SkillCooccurrenceRow[]
+): SkillCooccurrenceRow[] {
+  return rows
+    .map(stripForbiddenMartFields)
+    .filter((r) => r.n_postings >= MIN_PUBLIC_N);
+}
+
+function sanitizeTopLinks(rows: TopLinkRow[]): TopLinkRow[] {
+  return rows
+    .map(stripForbiddenMartFields)
+    .filter(
+      (r) =>
+        r.n_postings >= MIN_PUBLIC_N &&
+        r.rank_order <= 5 &&
+        isSafeExternalJobUrl(r.source_url)
+    );
+}
+
 async function querySupabaseMart<T>(
   table: string,
   limit = 2000
 ): Promise<T[] | null> {
   if (!isSupabaseConfigured()) return null;
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = createSupabasePublicClient();
     if (!supabase) return null;
-    const { data, error } = await supabase
-      .schema("mart")
-      .from(table)
-      .select("*")
-      .limit(limit);
-    if (error || !data || data.length === 0) return null;
-    return data as T[];
+    const pageSize = Math.min(1000, Math.max(1, limit));
+    const collected: T[] = [];
+    for (let offset = 0; offset < limit; offset += pageSize) {
+      const to = Math.min(limit - 1, offset + pageSize - 1);
+      const { data, error } = await supabase
+        .schema("mart")
+        .from(table)
+        .select("*")
+        .range(offset, to);
+      if (error) {
+        return collected.length > 0 ? collected : null;
+      }
+      if (!data || data.length === 0) {
+        break;
+      }
+      for (const row of data) {
+        collected.push(stripForbiddenMartFields(row as T));
+      }
+      if (data.length < to - offset + 1) {
+        break;
+      }
+    }
+    return collected.length > 0 ? collected : null;
   } catch {
     return null;
   }
@@ -121,14 +278,46 @@ async function querySupabaseMart<T>(
 async function callPublicRpc<T>(fnName: string): Promise<T[] | null> {
   if (!isSupabaseConfigured()) return null;
   try {
-    const supabase = await createSupabaseServerClient();
+    const supabase = createSupabasePublicClient();
     if (!supabase) return null;
     const { data, error } = await supabase.rpc(fnName);
     if (error || !data || !Array.isArray(data) || data.length === 0) return null;
-    return data as T[];
+    return (data as T[]).map(stripForbiddenMartFields);
   } catch {
     return null;
   }
+}
+
+export async function getPublicDimSkills(): Promise<DimSkill[]> {
+  const seed = loadSeedMarts();
+  const sbSkills = await callPublicRpc<DimSkill>("get_dim_skills");
+  return sbSkills ?? seed.dim_skills;
+}
+
+export async function getSalaryFallbackContext(): Promise<{
+  dimLocations: DimLocation[];
+  mlLeaderboard: MlLeaderboardRow[];
+  salaryPrediction: SalaryPredictionRow[];
+  salaryStats: SalaryStatsRow[];
+  occupationSkillProfile: OccupationSkillProfileRow[];
+}> {
+  const seed = loadSeedMarts();
+  const [sbLoc, sbMl, sbPred, sbStats, sbOccProf] = await Promise.all([
+    callPublicRpc<DimLocation>("get_dim_locations"),
+    querySupabaseMart<MlLeaderboardRow>("ml_leaderboard", 500),
+    querySupabaseMart<SalaryPredictionRow>("salary_prediction", 1000),
+    querySupabaseMart<SalaryStatsRow>("salary_stats", 2000),
+    querySupabaseMart<OccupationSkillProfileRow>("occupation_skill_profile", 3000),
+  ]);
+  return {
+    dimLocations: sbLoc ?? seed.dim_locations,
+    mlLeaderboard: sbMl ?? seed.ml_leaderboard ?? [],
+    salaryPrediction: sbPred ?? seed.salary_prediction ?? [],
+    salaryStats: sanitizeSalaryStatsRows(sbStats ?? seed.salary_stats),
+    occupationSkillProfile: sanitizeOccProfileRows(
+      sbOccProf ?? seed.occupation_skill_profile
+    ),
+  };
 }
 
 /**
@@ -149,9 +338,9 @@ export async function getLandingData(): Promise<{
   ]);
 
   return {
-    publicSummary: sbSummary?.[0] ?? seed.public_summary,
-    postingVolumeDaily: sbVol ?? seed.posting_volume_daily,
-    skillDemandWeekly: sbSkill ?? seed.skill_demand_weekly,
+    publicSummary: sanitizePublicSummary(sbSummary?.[0] ?? seed.public_summary),
+    postingVolumeDaily: sanitizeVolumeDailyRows(sbVol ?? seed.posting_volume_daily),
+    skillDemandWeekly: sanitizeWeeklyRows(sbSkill ?? seed.skill_demand_weekly),
     laborMonthly2y: seed.labor_monthly_2y ?? [],
   };
 }
@@ -180,10 +369,12 @@ export async function getMarketExplorerData(): Promise<{
     ]);
 
   return {
-    publicSummary: sbSummary?.[0] ?? seed.public_summary,
-    skillDemandWeekly: sbSdw ?? seed.skill_demand_weekly,
-    occupationSkillProfile: sbOcc ?? seed.occupation_skill_profile,
-    postingVolumeDaily: sbVol ?? seed.posting_volume_daily,
+    publicSummary: sanitizePublicSummary(sbSummary?.[0] ?? seed.public_summary),
+    skillDemandWeekly: sanitizeWeeklyRows(sbSdw ?? seed.skill_demand_weekly),
+    occupationSkillProfile: sanitizeOccProfileRows(
+      sbOcc ?? seed.occupation_skill_profile
+    ),
+    postingVolumeDaily: sanitizeVolumeDailyRows(sbVol ?? seed.posting_volume_daily),
     dimLocations: sbLoc ?? seed.dim_locations,
     dimOccupations: sbDimOcc ?? seed.dim_occupations,
     dimSkills: sbDimSkill ?? seed.dim_skills,
@@ -220,10 +411,10 @@ export async function getSkillDetailData(slug: string): Promise<{
         s.skill_canonical.toLowerCase().replace(/[^a-z0-9]+/g, "-") === slug
     ) ?? null;
 
-  const sdw = sbSdw ?? seed.skill_demand_weekly;
-  const occ = sbOcc ?? seed.occupation_skill_profile;
-  const co = sbCo ?? seed.skill_cooccurrence;
-  const sal = sbSal ?? seed.salary_stats;
+  const sdw = sanitizeWeeklyRows(sbSdw ?? seed.skill_demand_weekly);
+  const occ = sanitizeOccProfileRows(sbOcc ?? seed.occupation_skill_profile);
+  const co = sanitizeCooccurrenceRows(sbCo ?? seed.skill_cooccurrence);
+  const sal = sanitizeSalaryStatsRows(sbSal ?? seed.salary_stats);
 
   return {
     skill,
@@ -244,7 +435,7 @@ export async function getSkillDetailData(slug: string): Promise<{
           .sort((a, b) => a.rank_order - b.rank_order)
       : [],
     salaryStats: sal,
-    publicSummary: sbSum?.[0] ?? seed.public_summary,
+    publicSummary: sanitizePublicSummary(sbSum?.[0] ?? seed.public_summary),
   };
 }
 
@@ -273,9 +464,11 @@ export async function getOccupationDetailData(slug: string): Promise<{
     ) ??
     null;
 
-  const profileRows = sbProfile ?? seed.occupation_skill_profile;
-  const salRows = sbSal ?? seed.salary_stats;
-  const linkRows = sbLinks ?? seed.top_links;
+  const profileRows = sanitizeOccProfileRows(
+    sbProfile ?? seed.occupation_skill_profile
+  );
+  const salRows = sanitizeSalaryStatsRows(sbSal ?? seed.salary_stats);
+  const linkRows = sanitizeTopLinks(sbLinks ?? seed.top_links);
 
   const targetCluster = occupation?.occupation_cluster;
 
@@ -294,7 +487,7 @@ export async function getOccupationDetailData(slug: string): Promise<{
           .filter((r) => r.occupation_cluster === targetCluster)
           .slice(0, 5)
       : [],
-    publicSummary: sbSum?.[0] ?? seed.public_summary,
+    publicSummary: sanitizePublicSummary(sbSum?.[0] ?? seed.public_summary),
   };
 }
 
@@ -322,14 +515,16 @@ export async function getSalaryExplorerData(): Promise<{
     ]);
 
   return {
-    publicSummary: sbSum?.[0] ?? seed.public_summary,
-    salaryStats: sbStats ?? seed.salary_stats,
-    salaryPrediction: sbPred ?? seed.salary_prediction ?? [],
-    occupationSkillProfile: sbOccProf ?? seed.occupation_skill_profile,
+    publicSummary: sanitizePublicSummary(sbSum?.[0] ?? seed.public_summary),
+    salaryStats: sanitizeSalaryStatsRows(sbStats ?? seed.salary_stats),
+    salaryPrediction: (sbPred ?? seed.salary_prediction ?? []).map(stripForbiddenMartFields),
+    occupationSkillProfile: sanitizeOccProfileRows(
+      sbOccProf ?? seed.occupation_skill_profile
+    ),
     dimOccupations: sbDimOcc ?? seed.dim_occupations,
     dimLocations: sbDimLoc ?? seed.dim_locations,
     dimSkills: sbDimSkill ?? seed.dim_skills,
-    mlLeaderboard: sbMl ?? seed.ml_leaderboard ?? [],
+    mlLeaderboard: (sbMl ?? seed.ml_leaderboard ?? []).map(stripForbiddenMartFields),
   };
 }
 
@@ -346,9 +541,9 @@ export async function getMlLabData(): Promise<{
   ]);
 
   return {
-    publicSummary: sbSum?.[0] ?? seed.public_summary,
-    leaderboard: sbLb ?? seed.ml_leaderboard ?? [],
-    featureImportance: sbFi ?? seed.ml_feature_importance ?? [],
+    publicSummary: sanitizePublicSummary(sbSum?.[0] ?? seed.public_summary),
+    leaderboard: (sbLb ?? seed.ml_leaderboard ?? []).map(stripForbiddenMartFields),
+    featureImportance: (sbFi ?? seed.ml_feature_importance ?? []).map(stripForbiddenMartFields),
   };
 }
 
@@ -374,20 +569,24 @@ export async function getSkillCatalogData(): Promise<{
     ]);
 
   return {
-    publicSummary: sbSum?.[0] ?? seed.public_summary,
+    publicSummary: sanitizePublicSummary(sbSum?.[0] ?? seed.public_summary),
     dimSkills: sbSkills ?? seed.dim_skills,
     dimOccupations: sbOcc ?? seed.dim_occupations,
     dimLocations: sbLoc ?? seed.dim_locations,
-    occupationSkillProfile: sbOccProf ?? seed.occupation_skill_profile,
-    curriculumCoverageRef: sbCurRef ?? seed.curriculum_coverage_ref,
-    topLinks: sbLinks ?? seed.top_links,
+    occupationSkillProfile: sanitizeOccProfileRows(
+      sbOccProf ?? seed.occupation_skill_profile
+    ),
+    curriculumCoverageRef: sanitizeCurriculumRefRows(
+      sbCurRef ?? seed.curriculum_coverage_ref
+    ),
+    topLinks: sanitizeTopLinks(sbLinks ?? seed.top_links),
   };
 }
 
 export async function getUserSkills(session: UserSession | null): Promise<UserSkill[]> {
   if (!session) return [];
-  const seed = loadSeedMarts();
-  const skillByKey = new Map(seed.dim_skills.map((s) => [s.skill_key, s]));
+  const dimSkills = await getPublicDimSkills();
+  const skillByKey = new Map(dimSkills.map((s) => [s.skill_key, s]));
 
   if (!session.is_demo && isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
@@ -489,7 +688,7 @@ export async function getAdminData(session: UserSession | null): Promise<{
   if (!session.is_demo && isSupabaseConfigured()) {
     const supabase = await createSupabaseServerClient();
     if (supabase) {
-      const [ps, dq, tq, chats] = await Promise.all([
+      const [ps, dq, tq, chats, sbSum, sbVol, sbSkills] = await Promise.all([
         supabase.rpc("get_admin_pipeline_status"),
         supabase.rpc("get_admin_dq_summary"),
         supabase.rpc("get_admin_taxonomy_queue"),
@@ -498,15 +697,20 @@ export async function getAdminData(session: UserSession | null): Promise<{
           .select("chat_id, page, question, answered, created_at")
           .order("created_at", { ascending: false })
           .limit(50),
+        querySupabaseMart<PublicSummary>("public_summary", 1),
+        querySupabaseMart<PostingVolumeDailyRow>("posting_volume_daily", 3000),
+        callPublicRpc<DimSkill>("get_dim_skills"),
       ]);
       if (!ps.error && !dq.error) {
         return {
-          publicSummary: seed.public_summary,
+          publicSummary: sanitizePublicSummary(sbSum?.[0] ?? seed.public_summary),
           pipelineStatus: (ps.data as PipelineStatusRow[]) ?? seed.pipeline_status,
           dqSummary: (dq.data as DqSummaryRow[]) ?? seed.dq_summary,
           pendingAliases: (tq.data as PendingAliasRow[]) ?? seed.pending_aliases,
-          postingVolumeDaily: seed.posting_volume_daily,
-          dimSkills: seed.dim_skills,
+          postingVolumeDaily: sanitizeVolumeDailyRows(
+            sbVol ?? seed.posting_volume_daily
+          ),
+          dimSkills: sbSkills ?? seed.dim_skills,
           chatLogs: (chats.data as any[]) ?? [],
         };
       }

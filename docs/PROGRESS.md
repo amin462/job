@@ -9,7 +9,7 @@
 
 - **เวอร์ชันแผน:** `PLAN.md` v4.2 (D1–D19)
 - **git:** commit แรก `753a33a` บน `master` (ยังไม่มี remote) — data/, spike/raw/, spike/out/, design/, .env* ไม่อยู่ใน git
-- **TASKS.md:** `[x]` 24 ข้อ · `[~]` 40 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลังรัน ETL จาก Postgres staging → dw → marts)
+- **TASKS.md:** `[x]` 25 ข้อ · `[~]` 39 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลังเชื่อม apps/web กับ Supabase จริง งานที่ 6)
 - **Supabase (T0.2):** โปรเจกต์ `smaaunonziebjvfyfuje` (Tokyo) · คีย์อยู่ใน `.env` และ `apps/web/.env.local` (ไม่อยู่ใน git) · Python ต่อผ่าน **Session pooler** ได้แล้ว (host ตรง `db.*.supabase.co` มีแต่ IPv6 เครื่องนี้ต่อไม่ได้) · **ลง migrations `001`–`005` แล้ว** (Postgres 17.12, schema `staging`/`dw`/`mart`/`ml`/`public`, `pg_trgm` v1.6, RLS ครบ 6 ตาราง `app_*`, seed `dim_location` 79 / `dim_date` 1,095)
 - **GitHub:** `https://github.com/amin462/job` (public, ยังว่าง) — ยังไม่ได้ตั้ง remote/push รอผู้ใช้สั่ง
 - **เทสต์ล่าสุด:** `pytest` scraper+import+skills+clean 90 passed (รวมเทสต์ N_h ใหม่ 4 ข้อ) · `test_ml.py` ผ่านเมื่อเช้า (ไม่ได้แก้ไฟล์ ML) · `vitest` 26/26 · `tsc --noEmit` ผ่าน · `npm run build` ผ่าน (26 route)
@@ -56,6 +56,25 @@
 ---
 
 ## 5. บันทึกงานที่ทำเสร็จแล้ว (Changelog)
+
+### 2026-11-21 (16:00) — โครงสร้างชุดข้อมูลครบ (A+B) + เร่งความเร็ว harvester · Claude
+- **ผู้ใช้สั่ง:** เก็บทุก column ที่เว็บมี ตัดเฉพาะข้อมูลส่วนบุคคล (PDPA) และแปลงเป็น feature ให้ครบ — เอกสาร **[docs/data-dictionary.md](data-dictionary.md)** อธิบายทุก column (ที่มา, ครอบคลุม, ใช้ทำอะไร, ห้ามใช้อะไร)
+- `scraper/jobthai_harvester.py` (รีสตาร์ทแล้ว 16:02):
+  - หน้ารายการ: เก็บทั้ง record ของแต่ละประกาศ (`job.listing_meta`) + flag urgent / near_transit / industrial_estate / online_interview / district_id / salary_text_listing
+  - หน้าประกาศ: อ่านทุก element `id="job-*"` (ไม่รวมการ์ดงานอื่น) → `positions`, `salary_text`, `update_at`, `company_detail`, `directions` (scrub เบอร์/อีเมล/LINE) เก็บใน `jsonld.x_jobthai`
+  - ดึง 291 ประกาศเดิมซ้ำก่อน (ทุกแถวจะมี column เท่ากัน) ถ้าประกาศปิดไปแล้วเก็บข้อมูลเดิมไว้ + `x_jobthai.unavailable`
+  - เติม province_id/jobtype_id จากชื่อในตัวประกาศเมื่อหน้ารายการไม่ได้ให้
+  - ความเร็ว: jitter 0–1 วินาที (เดิม 0–2.5) delay ยัง ≥ 5 วินาที · รอบถัดไปข้ามหน้ารายการที่ว่าง (total = 0) ซึ่งสแกนไปแล้วไม่เกิน 3 วัน (~46% ของหน้ารายการว่าง)
+- **ใหม่** `pipeline/etl/enrich.py` + `pipeline/tests/test_enrich.py` (22 เทสต์): seniority_level (ระบุได้ 87%), employment_type_derived, accepts_fresh_grad, is_remote, shift_work, work_days_per_week, positions, salary_disclosure, benefit_* 14 กลุ่ม + n_benefit_types, urgent, near_transit, in_industrial_estate, online_interview, days_listed — กฎคำค้นล้วน ไม่ใช้ LLM
+- `pipeline/etl/run_pipeline.py`: ส่ง `payload` เข้า `enrich_fields()` → clean_postings 66 column (เดิม 36)
+- `pipeline/ml/features.py`: feature ใหม่ `seniority_level`, `employment_type_derived` (แทน `employment_type` ที่เป็น FULL_TIME ทุกแถว) · หน้า Salary ส่งสองค่านี้ได้ (ไม่ส่ง = ไม่ระบุ/full_time) · โมเดลที่ export ไว้เดิมยังใช้ได้ (spec เดิมไม่มีสอง column นี้)
+- เทสต์: `pytest pipeline/tests` 131 passed
+- ⚠️ **ถึง Gemini:** ประมาณ 15:52 harvester ทั้งสองตัวถูกปิดพร้อมกัน (ไม่มี log) — **ห้ามสั่งปิด python.exe ทั้งหมด** (`taskkill /IM python.exe` ฯลฯ) ให้ปิดเฉพาะ PID ของตัวเองถ้าจำเป็น
+
+### 2026-11-21 (เย็น) — งานที่ 6: เชื่อม Next.js `apps/web` กับ Supabase จริง + fallback และตัวกรองความปลอดภัย (T0.2, T5.4)
+- ทดสอบเชื่อมจาก Node/Next.js ด้วย `apps/web/.env.local`: `get_dim_skills` (128), `get_dim_occupations` (18), `get_dim_locations` (80) อ่านจาก Supabase ได้จริง; ส่วน `mart.*` คืน `PGRST106` จนกว่าผู้ใช้จะกดเพิ่ม `mart` ใน Exposed schemas (fallback ไปยัง `data/processed/seed_marts.json` อัตโนมัติ)
+- ปรับปรุง `apps/web/src/lib/supabase/config.ts`, `server.ts` (เพิ่ม `createSupabasePublicClient` แบบ cookie-less), `data.ts` (pagination `.range()` เกิน 1,000 แถว, runtime sanitizer ตัดฟิลด์ `description`/`qualifications`/HR PII และบังคับซ่อน `n < 5` ทุก mart ทั้งจาก Supabase และ fallback, ให้ `getAdminData` และ `getUserSkills` อ่านจาก Supabase ก่อน), `/api/salary/estimate`, `/api/user-state`, และเพิ่ม `app/loading.tsx` + `app/error.tsx`
+- เพิ่มเทสต์ `apps/web/src/__tests__/data-supabase.test.ts` · ผลรัน: `vitest` `28/28 passed` (6 ไฟล์), `tsc --noEmit` ผ่าน, `npm run build` ผ่านครบ 26 route → ปิด `T5.4` เป็น `[x]` (คง `T0.2` เป็น `[~]` รอ `👤` Exposed schemas `mart` + `GEMINI_API_KEY`)
 
 ### 2026-11-21 (เย็น) — งานที่ 5: รันทั้งสายจาก staging ใน Postgres → DW → Marts (T2.3, T3.4, T3.5, T3.6, T3.7)
 - เพิ่ม `load_raw_from_postgres` และ `--from-staging` ใน `pipeline/etl/run_pipeline.py` (อ่าน `staging.job_posting_raw` + `staging.listing_seen` จาก Postgres) และปรับ `upsert_dw_to_postgres` ใน `pipeline/etl/load_dw.py` ให้ upsert แบบ set-based `unnest(...)` และรีใช้ `scrape_run` + แทนที่ `dq_result` ของรอบเดิมอย่าง idempotent
@@ -133,3 +152,9 @@
    - ต่อ `run_pipeline.py` ให้อ่านจาก staging ที่ import_sqlite สร้าง แล้วรันทั้งสายกับ 291+ ประกาศจริง (T3.7)
 2. **ตอนนี้ทำได้แล้ว (T0.2 มีคีย์):** `npx supabase db push --db-url "$DATABASE_URL"` ลง migrations 001–005 → ปิด T1.1, T3.1, T3.2, T3.5, T3.6, T3.8, T6.1, T6.4 → รัน import_sqlite เข้า Postgres
 3. **หลังได้ ≥ 5,000 ประกาศ:** รัน ETL + benchmark ใหม่ด้วยข้อมูลจริง แล้วอัปเดต `docs/ml-report.md`, `docs/dq-report.md`
+
+### งานต่อจากโครงสร้างชุดข้อมูลใหม่ (21 พ.ย. 16:00)
+1. Migration `006_fact_enrich_columns.sql`: เพิ่ม column ของ `pipeline/etl/enrich.py` (`ENRICH_COLUMNS`) ใน `dw.fact_job_posting` (nullable) + ให้ `load_dw.upsert_dw_to_postgres` เขียนค่าเหล่านี้ → `npx supabase db push --db-url` → รัน pipeline ซ้ำ ตรวจรันซ้ำแล้วแถวไม่เปลี่ยน
+2. Mart สถิติรวม (n ≥ 5) จาก column ใหม่: สัดส่วนรับจบใหม่, สวัสดิการ, ระดับตำแหน่ง, จำนวนอัตรา ต่อ occupation/จังหวัด — ใช้ในหน้า Market/Occupation (ถ่วง `sample_weight`)
+3. หน้า Salary (`/salary`, T5.12): เพิ่มตัวเลือก ระดับตำแหน่ง (`seniority_level`) และประเภทการจ้าง (`employment_type_derived`) ส่งไป `/api/salary/estimate` → ml-api
+4. หลังได้ข้อมูลจริง ≥ 5,000: benchmark ใหม่ (feature ใหม่อยู่ใน `CATEGORICAL_FEATURES` แล้ว) + ablation เทียบ "มี/ไม่มี สวัสดิการ" ในบทที่ 4
