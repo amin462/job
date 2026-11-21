@@ -14,8 +14,9 @@
 - **GitHub:** `https://github.com/amin462/job` (public, ยังว่าง) — ยังไม่ได้ตั้ง remote/push รอผู้ใช้สั่ง
 - **เทสต์ล่าสุด:** `pytest pipeline/tests -q` ได้ `136 passed` · clean-clone (`git archive HEAD` + fixtures โดยไม่มี `spike/`/`data/`) ได้ `105 passed, 4 skipped` · `apps/web`: `npx vitest run` ได้ `7 files, 34 passed` · `npx tsc --noEmit` ผ่าน · `npm run build` ผ่าน (26 route) · `check_db` ผ่าน
 - **การเก็บข้อมูลจริง (T1.8) กำลังรัน:** ผู้ใช้ยืนยัน T0.3 แล้ว (21 พ.ย.) — harvester ทั้งสองตัวรันแบบหน้าต่าง cmd ย่อไว้ ด้วย delay ≥ 5 วินาที
-  - JobThai (`data/jobthai.sqlite`): 16,130 job id · ดึงรายละเอียดแล้ว 291 · error 2 · ที่เหลือรอดึง (ประมาณ 27 ชม. หลังสแกนรายการรอบใหม่ ~6 ชม.)
-  - JobBKK (`data/jobbkk.sqlite`): 7,542 job id (ยังสแกนกรุงเทพฯ ไม่ครบ) · ยังไม่ได้ดึงรายละเอียด
+  - JobThai (`data/jobthai.sqlite`, 22:20): 16,959 job id · ดึงรายละเอียดแล้ว 291 · error 2 · ที่เหลือรอดึง (ประมาณ 30 ชม. หลังสแกนรายการรอบนี้เสร็จ ~5.5 ชม.)
+  - JobBKK (`data/jobbkk.sqlite`, 22:20): 10,085 job id (สแกนกรุงเทพฯ ถึงหน้า 67/806) · ยังไม่ได้ดึงรายละเอียด
+  - ตั้งแต่ 22:20 harvester ทั้งสองตัว **ทำรอบเดิมต่อเมื่อถูกเปิดใหม่** (ตาราง `meta` ใน SQLite) — เครื่องหลุดแล้วไม่ต้องสแกนหน้ารายการใหม่ทั้งหมด
 - **ข้อมูลตัวอย่างสำหรับพัฒนา:** `spike/out/sample_jobs.csv` (131 ประกาศ) + `spike/raw/jobthai/` (140 ไฟล์ HTML) — ไม่อยู่ใน git
 
 ---
@@ -55,6 +56,16 @@
 ---
 
 ## 5. บันทึกงานที่ทำเสร็จแล้ว (Changelog)
+
+### 2026-11-21 (22:20) — harvester ทำรอบเดิมต่อหลังเปิดใหม่ (T1.8) · Claude
+
+- **ปัญหา:** ทุกครั้งที่ harvester ถูกเปิดใหม่ (เครื่อง sleep เพราะปิดฝา, ปิดหน้าต่าง, crash) JobThai สแกนหน้ารายการ 3,555 หน้าใหม่ตั้งแต่ต้น (~6 ชม.) ก่อนดึงรายละเอียด และ JobBKK กลับไปกรุงเทพฯ หน้า 1 (เคยไปถึงหน้า 140 แล้วหายไป)
+- **แก้:** [scraper/jobthai_harvester.py](../scraper/jobthai_harvester.py) เพิ่มตาราง `meta` (`round_started`, `discover_done`, `round_done`) + `begin_discover` / `next_step` / `run_rounds` ใช้ร่วมกับ [scraper/jobbkk_harvester.py](../scraper/jobbkk_harvester.py)
+  - เปิดใหม่ระหว่างสแกนรายการ → ข้ามหน้ารายการ/จังหวัดที่สแกนแล้วในรอบนี้ · JobBKK ทำจังหวัดที่ค้างต่อจาก `last_page + 1` (`resume_point`)
+  - เปิดใหม่ระหว่างดึงรายละเอียด → ไปดึงรายละเอียดต่อทันที · เปิดใหม่ระหว่างพักรอบ → รอเวลาที่เหลือ
+  - รอบใหม่: JobBKK ตั้ง `last_page = 0` ทุกจังหวัด · ลำดับการสแกน, delay ≥ 5 วินาที, การพัก 60 นาทีเมื่อโดนบล็อก ไม่เปลี่ยน
+- **ย้ายรอบที่กำลังรันเข้า `meta` ก่อนเปิดใหม่:** JobThai `round_started = 2026-11-21 16:01` (รอบแรกที่เก็บ N_h — 399 หน้ารายการที่สแกนแล้วไม่ต้องสแกนซ้ำ) · JobBKK `round_started = 22:05` (กรุงเทพฯ ทำต่อจากหน้า 68)
+- **เทสต์:** [pipeline/tests/test_harvester_resume.py](../pipeline/tests/test_harvester_resume.py) 6 ข้อ (offline, แทน `polite_get` / `time.sleep`) · `pytest pipeline/tests/test_harvester_resume.py test_import_sqlite.py test_scraper.py` ได้ `49 passed`
 
 ### 2026-11-21 (ค่ำ) — งานที่ 9 (ส่วนที่ 2): ตรวจรับ UI/UX Phase 5, Grounded Chat, PDPA Delete Account และเตรียม Gold Template 200 ข้อ (T5.1–T5.3, T5.5–T5.15, T7.1, T7.3, T7.4, T2.7)
 - แก้บั๊ก PDPA ลบบัญชีจริงใน [apps/web/src/app/api/user-state/route.ts](../apps/web/src/app/api/user-state/route.ts): เมื่อผู้ใช้ Supabase (`!is_demo`) กดลบข้อมูลตนเอง (`delete_account`) ให้ลบแถวใน `app_user_skill`, `app_curriculum` (cascade `app_curriculum_skill`), `app_profile`, ลบ Auth user ผ่าน service client (ยกเว้นบัญชีเดโม 4 persona เพื่อไม่ให้ปุ่มเดโมพัง), และเรียก `supabase.auth.signOut()`

@@ -1,6 +1,8 @@
 """JobThai harvester: bulk first, then keep collecting new postings slowly.
 
-State lives in one SQLite file, so you can stop (Ctrl+C) and start again any time.
+State lives in one SQLite file, so you can stop (Ctrl+C) and start again any time. A restart
+continues the current round: listings already scanned in it are skipped, and if all of them
+were scanned it goes straight to the job pages (table `meta`, see run_rounds).
 
 Commands
   python -X utf8 scraper/jobthai_harvester.py run       # loop forever: discover -> fetch -> sleep
@@ -76,6 +78,7 @@ def db():
         fetched_at TEXT, attempts INTEGER DEFAULT 0, jsonld TEXT);
     CREATE INDEX IF NOT EXISTS job_status ON job(status);
     CREATE TABLE IF NOT EXISTS ref (kind TEXT, id TEXT, name TEXT, PRIMARY KEY (kind, id));
+    CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);  -- round state, see run_rounds
     """)
     # added 2026-11-21 for stratified sampling: N_h per listing + each job's own stratum
     for table, column in (("listing", "total INTEGER"), ("job", "province_id TEXT"), ("job", "jobtype_id TEXT"),
@@ -199,12 +202,92 @@ def parse_listing(body):
     return total, jobs, refs, flags
 
 
+# --- rounds ---------------------------------------------------------------------------------
+# One round = scan the listings (discover) -> fetch the new job pages -> export -> pause.
+# Table `meta` remembers how far the current round got, so a harvester that is restarted
+# (crash, sleep, reboot, closed window) continues that round instead of starting over:
+#   round_started  discover of this round began; rows scanned after it count as done
+#   discover_done  discover finished             -> after a restart go straight to fetch
+#   round_done     fetch + export finished       -> after a restart wait out the pause
+# Shared with jobbkk_harvester.py (same keys in its own SQLite file).
+
+def meta_get(con, key):
+    row = con.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
+    return row[0] if row else None
+
+
+def meta_set(con, **values):
+    for key, value in values.items():
+        if value is None:
+            con.execute("DELETE FROM meta WHERE key=?", (key,))
+        else:
+            con.execute("INSERT OR REPLACE INTO meta(key, value) VALUES (?,?)", (key, value))
+    con.commit()
+
+
+def local_time(ts):
+    """UTC timestamp written by now() -> local 'YYYY-MM-DD HH:MM' for log lines."""
+    return f"{datetime.fromisoformat(ts).astimezone():%Y-%m-%d %H:%M}"
+
+
+def begin_discover(con):
+    """Continue the round whose discover was cut off, or start a new round.
+    Returns (round_started, resumed)."""
+    started = meta_get(con, "round_started")
+    if started and not meta_get(con, "discover_done"):
+        return started, True
+    started = now()
+    meta_set(con, round_started=started, discover_done=None, round_done=None)
+    return started, False
+
+
+def next_step(con, rediscover_hours, at=None):
+    """What `run` does first: ("discover", 0), ("fetch", 0) or ("wait", seconds left)."""
+    if not meta_get(con, "round_started") or not meta_get(con, "discover_done"):
+        return "discover", 0.0
+    done = meta_get(con, "round_done")
+    if not done:
+        return "fetch", 0.0
+    at = at or datetime.now(timezone.utc)
+    left = rediscover_hours * 3600 - (at - datetime.fromisoformat(done)).total_seconds()
+    return ("wait", left) if left > 0 else ("discover", 0.0)
+
+
+def run_rounds(con, discover_fn, fetch_fn, export_fn, stats_fn, rediscover_hours, log_fn):
+    """The `run` loop of both harvesters, resuming the current round after a restart."""
+    while True:
+        step, left = next_step(con, rediscover_hours)
+        if step == "wait":
+            log_fn(f"last round finished {local_time(meta_get(con, 'round_done'))}; "
+                   f"next round in {left / 3600:.1f} h")
+            time.sleep(left)
+            continue
+        if step == "fetch":
+            log_fn(f"listings of the round started {local_time(meta_get(con, 'round_started'))} "
+                   "were all scanned before the restart - continuing with job pages")
+        else:
+            discover_fn(con)
+        fetch_fn(con)
+        export_fn(con)
+        stats_fn(con)
+        meta_set(con, round_done=now())
+        log_fn(f"round done - sleeping {rediscover_hours} h before the next round")
+        time.sleep(rediscover_hours * 3600)
+
+
 def discover(con):
     load_listing_urls(con)
-    # listings still missing their total (N_h) first, then the least recently scanned
+    started, resumed = begin_discover(con)
+    # listings still missing their total (N_h) first, then the least recently scanned;
+    # listings already scanned in this round (before a restart) are not requested again
     rows = con.execute(
         "SELECT url, total, last_scanned FROM listing ORDER BY (total IS NULL) DESC, COALESCE(last_scanned,'') ASC"
     ).fetchall()
+    if resumed:
+        todo = [r for r in rows if (r[2] or "") < started]
+        log(f"continuing the round started {local_time(started)}: {len(rows) - len(todo)} listings already "
+            f"scanned, {len(todo)} to go")
+        rows = todo
     # listings that were empty (N_h = 0) a short while ago are not worth a request every round
     empty_cutoff = (datetime.now(timezone.utc) - timedelta(days=EMPTY_RESCAN_DAYS)).isoformat(timespec="seconds")
     new_total = skipped = 0
@@ -239,6 +322,7 @@ def discover(con):
         if i % 10 == 0:
             log(f"discover {i}/{len(rows)} listings | new ids so far {new_total}")
     con.commit()
+    meta_set(con, discover_done=now())
     log(f"discover done: {new_total} new job ids ({skipped} recently empty listings skipped)")
 
 
@@ -447,13 +531,7 @@ def export(con):
 
 
 def run_forever(con):
-    while True:
-        discover(con)
-        fetch(con)
-        export(con)
-        stats(con)
-        log(f"sleeping {REDISCOVER_HOURS} h before the next round")
-        time.sleep(REDISCOVER_HOURS * 3600)
+    run_rounds(con, discover, fetch, export, stats, REDISCOVER_HOURS, log)
 
 
 def keep_awake():

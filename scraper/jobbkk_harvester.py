@@ -1,7 +1,9 @@
 """JobBKK harvester: Playwright walks province listing pages to find job ids,
 then plain HTTP fetches each job page and keeps its schema.org JobPosting.
 
-State: data/jobbkk.sqlite (stop with Ctrl+C any time, run again to continue).
+State: data/jobbkk.sqlite (stop with Ctrl+C any time, run again to continue). A restart
+continues the current round: finished provinces are skipped, the province it was in
+continues after its last page, and if all were scanned it goes straight to the job pages.
 
 Commands
   python -X utf8 scraper/jobbkk_harvester.py run       # loop forever: discover -> fetch -> export -> sleep
@@ -30,7 +32,9 @@ from urllib.parse import quote
 import requests
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from jobthai_harvester import extract_jobposting, flat, now  # noqa: E402
+from jobthai_harvester import (  # noqa: E402
+    begin_discover, extract_jobposting, flat, local_time, meta_set, now, run_rounds,
+)
 
 DELAY = max(5.0, float(os.environ.get("BK_DELAY", "5")))  # AGENTS.md: >= 5 s
 DB = os.environ.get("BK_DB", "data/jobbkk.sqlite")
@@ -71,6 +75,7 @@ def db():
         first_seen TEXT, last_seen TEXT, seen_in TEXT,
         status TEXT DEFAULT 'pending', fetched_at TEXT, attempts INTEGER DEFAULT 0, jsonld TEXT);
     CREATE INDEX IF NOT EXISTS bk_status ON job(status);
+    CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);  -- round state, see run_rounds
     """)
     con.executemany("INSERT OR IGNORE INTO province(name) VALUES (?)", [(p,) for p in PROVINCES])
     con.commit()
@@ -96,16 +101,46 @@ def pause():
     time.sleep(DELAY + random.uniform(0, DELAY * 0.5))
 
 
+def resume_point(total, last_page, max_pages=0):
+    """(first page, total, number of pages) for one province: after a restart the province
+    the round was in continues after last_page instead of going back to page 1."""
+    if last_page and total:
+        pages = max(1, -(-total // PER_PAGE))
+        if max_pages:
+            pages = min(pages, max_pages)
+        return last_page + 1, total, pages
+    return 1, None, 1
+
+
+def provinces_to_scan(con):
+    """Provinces not finished in the current round, as (name, total, last_page)."""
+    started, resumed = begin_discover(con)
+    if not resumed:
+        con.execute("UPDATE province SET last_page=0")  # last_page counts pages of the current round
+        con.commit()
+    rows = con.execute(
+        "SELECT name, total, last_page, last_scanned FROM province ORDER BY COALESCE(last_scanned,'') ASC"
+    ).fetchall()
+    if resumed:
+        todo = [r for r in rows if (r[3] or "") < started]
+        log(f"continuing the round started {local_time(started)}: {len(rows) - len(todo)} provinces done, "
+            f"{len(todo)} to go")
+        rows = todo
+    return [r[:3] for r in rows]
+
+
 def discover(con):
     global blocks
     from playwright.sync_api import sync_playwright
     new_total = 0
+    provs = provinces_to_scan(con)
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page(user_agent=UA, viewport={"width": 1366, "height": 900})
-        provs = [r[0] for r in con.execute("SELECT name FROM province ORDER BY COALESCE(last_scanned,'') ASC")]
-        for prov in provs:
-            n, total, pages = 1, None, 1
+        for prov, saved_total, saved_page in provs:
+            n, total, pages = resume_point(saved_total, saved_page, MAX_PAGES)
+            if n > 1:
+                log(f"{prov}: continuing at page {n}/{pages}")
             while n <= pages:
                 url = f"https://www.jobbkk.com/{quote('หางาน')}/{quote(prov)}" + (f"/{n}" if n > 1 else "")
                 pause()
@@ -147,6 +182,7 @@ def discover(con):
             con.commit()
             log(f"{prov}: total {total} | pages scanned {n - 1} | new ids so far {new_total}")
         browser.close()
+    meta_set(con, discover_done=now())
     log(f"discover done: {new_total} new job ids")
 
 
@@ -207,13 +243,7 @@ def export(con):
 
 
 def run_forever(con):
-    while True:
-        discover(con)
-        fetch(con)
-        export(con)
-        stats(con)
-        log(f"sleeping {REDISCOVER_HOURS} h before the next round")
-        time.sleep(REDISCOVER_HOURS * 3600)
+    run_rounds(con, discover, fetch, export, stats, REDISCOVER_HOURS, log)
 
 
 def keep_awake():

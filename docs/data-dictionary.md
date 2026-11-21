@@ -7,7 +7,7 @@
 
 | ชั้น | ที่เก็บ | สร้างโดย | เนื้อหา |
 |---|---|---|---|
-| L0 ดิบ | `data/jobthai.sqlite` (`job`, `listing`, `ref`) | `scraper/jobthai_harvester.py` | JSON-LD ของประกาศ (ตัด HR contact) + `x_jobthai` (ข้อมูลหน้ารายการ + หน้าประกาศ), N_h ต่อหน้ารายการ |
+| L0 ดิบ | `data/jobthai.sqlite` (`job`, `listing`, `ref`, `meta` = สถานะรอบเก็บ) | `scraper/jobthai_harvester.py` | JSON-LD ของประกาศ (ตัด HR contact) + `x_jobthai` (ข้อมูลหน้ารายการ + หน้าประกาศ), N_h ต่อหน้ารายการ |
 | L1 staging | `staging.listing_seen`, `staging.job_posting_raw` (Supabase) | `pipeline/scraper/import_sqlite.py` | ทุก id ที่เห็น + วันที่เห็น + ชั้นสุ่ม · ประกาศที่ parse แล้ว + `payload` (JSON-LD สะอาด) |
 | L2 clean / DW | `data/processed/clean_postings.csv`, `dw.fact_job_posting`, `dw.fact_posting_skill` | `pipeline/etl/run_pipeline.py` (+ `enrich.py`) | 66 column ต่อประกาศ (หัวข้อ 3) |
 | L3 mart | `mart.*` | `pipeline/etl/build_marts.py` | สถิติรวม n ≥ 5 สำหรับเว็บ |
