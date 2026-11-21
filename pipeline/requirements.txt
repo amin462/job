@@ -1,0 +1,17 @@
+pytest
+pandas
+numpy
+scikit-learn
+xgboost
+lightgbm
+catboost
+pythainlp
+httpx
+playwright
+psycopg[binary]
+python-dotenv
+joblib
+fastapi
+uvicorn[standard]
+pydantic
+requests

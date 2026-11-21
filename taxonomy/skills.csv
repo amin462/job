@@ -1,0 +1,129 @@
+skill_key,skill_canonical,skill_slug,skill_name_th,skill_type,skill_group,onet_ref,esco_ref
+1,Microsoft Excel,microsoft-excel,ไมโครซอฟท์ เอ็กเซล,tool,Office & Productivity,2.E.4.i,http://data.europa.eu/esco/skill/e0e0f1c5-spreadsheet
+2,Microsoft Word,microsoft-word,ไมโครซอฟท์ เวิร์ด,tool,Office & Productivity,2.E.4.d,http://data.europa.eu/esco/skill/word-processing
+3,Microsoft PowerPoint,microsoft-powerpoint,ไมโครซอฟท์ พาวเวอร์พอยท์,tool,Office & Productivity,2.E.4.f,http://data.europa.eu/esco/skill/presentation-software
+4,Microsoft Office,microsoft-office,ไมโครซอฟท์ ออฟฟิศ,tool,Office & Productivity,2.E.1.k,http://data.europa.eu/esco/skill/office-suite
+5,Google Workspace,google-workspace,กูเกิล เวิร์กสเปซ (Docs/Sheets),tool,Office & Productivity,2.E.1.k,http://data.europa.eu/esco/skill/office-tools
+6,Power BI,power-bi,พาวเวอร์ บีไอ,tool,Data & BI,2.E.6.m,http://data.europa.eu/esco/skill/business-intelligence
+7,Tableau,tableau,แท็บโบล (Tableau),tool,Data & BI,2.E.6.m,http://data.europa.eu/esco/skill/data-visualization
+8,Looker Studio,looker-studio,ลุคเกอร์ สตูดิโอ (Data Studio),tool,Data & BI,2.E.6.m,http://data.europa.eu/esco/skill/data-visualization
+9,SQL,sql,ภาษา SQL และฐานข้อมูล,technical,Data & BI,2.E.6.f,http://data.europa.eu/esco/skill/sql-query
+10,Python,python,ภาษาไพทอน (Python),technical,Data & BI,2.E.7.h,http://data.europa.eu/esco/skill/python-programming
+11,R Programming,r-programming,ภาษาอาร์ (R),technical,Data & BI,2.E.9.d,http://data.europa.eu/esco/skill/r-programming
+12,Data Analysis,data-analysis,การวิเคราะห์ข้อมูล,technical,Data & BI,2.E.9.d,http://data.europa.eu/esco/skill/data-analysis
+13,Statistics,statistics,สถิติและการวิเคราะห์เชิงปริมาณ,technical,Data & BI,2.A.1.e,http://data.europa.eu/esco/skill/statistics
+14,Machine Learning / AI,machine-learning-ai,การเรียนรู้ของเครื่องและปัญญาประดิษฐ์,technical,Data & BI,2.E.9.d,http://data.europa.eu/esco/skill/machine-learning
+15,ETL / Data Engineering,etl-data-engineering,วิศวกรรมข้อมูลและ ETL,technical,Data & BI,2.E.6.d,http://data.europa.eu/esco/skill/data-engineering
+16,MySQL,mysql,มายเอสคิวแอล (MySQL),tool,Data & BI,2.E.6.d,http://data.europa.eu/esco/skill/mysql
+17,PostgreSQL,postgresql,โพสต์เกรสคิวแอล (PostgreSQL),tool,Data & BI,2.E.6.d,http://data.europa.eu/esco/skill/postgresql
+18,Microsoft SQL Server,microsoft-sql-server,ไมโครซอฟท์ เอสคิวแอล เซิร์ฟเวอร์,tool,Data & BI,2.E.6.d,http://data.europa.eu/esco/skill/mssql
+19,Java,java,ภาษาจาวา (Java),technical,Programming & Web,2.E.7.h,http://data.europa.eu/esco/skill/java
+20,JavaScript / TypeScript,javascript-typescript,จาวาสคริปต์และไทป์สคริปต์,technical,Programming & Web,2.E.7.h,http://data.europa.eu/esco/skill/javascript
+21,React / Frontend Frameworks,react-frontend,เฟรมเวิร์กส่วนหน้า (React/Vue/Angular),technical,Programming & Web,2.E.4.g,http://data.europa.eu/esco/skill/web-frontend
+22,Node.js,node-js,โนดเจเอส (Node.js),technical,Programming & Web,2.E.7.h,http://data.europa.eu/esco/skill/nodejs
+23,HTML / CSS,html-css,การพัฒนาเว็บ HTML และ CSS,technical,Programming & Web,2.E.4.g,http://data.europa.eu/esco/skill/html-css
+24,PHP / Laravel,php-laravel,ภาษา PHP และ Laravel,technical,Programming & Web,2.E.7.h,http://data.europa.eu/esco/skill/php
+25,C# / .NET,csharp-dotnet,ภาษา C# และ .NET,technical,Programming & Web,2.E.7.h,http://data.europa.eu/esco/skill/dotnet
+26,C Programming,c-programming,ภาษา C,technical,Programming & Web,2.E.7.h,http://data.europa.eu/esco/skill/c-programming
+27,C++,cpp,ภาษา C++,technical,Programming & Web,2.E.7.h,http://data.europa.eu/esco/skill/cpp
+28,Go (Golang),go-golang,ภาษา Go (Golang),technical,Programming & Web,2.E.7.h,http://data.europa.eu/esco/skill/golang
+29,Mobile App Development,mobile-app-development,การพัฒนาแอปมือถือ (iOS/Android/Flutter),technical,Programming & Web,2.E.7.h,http://data.europa.eu/esco/skill/mobile-dev
+30,REST API / Microservices,rest-api,การออกแบบและเชื่อมต่อ REST API,technical,Programming & Web,2.E.7.c,http://data.europa.eu/esco/skill/api-integration
+31,Git / Version Control,git-version-control,การจัดการเวอร์ชันโค้ด (Git),tool,Programming & Web,2.E.5.a,http://data.europa.eu/esco/skill/version-control
+32,Software Testing / QA,software-testing-qa,การทดสอบซอฟต์แวร์,technical,Programming & Web,2.E.5.a,http://data.europa.eu/esco/skill/software-testing
+33,Cloud Computing (AWS/Azure/GCP),cloud-computing,คลาวด์คอมพิวติ้ง (AWS/Azure/GCP),technical,Cloud & IT Infrastructure,2.E.16.i,http://data.europa.eu/esco/skill/cloud-computing
+34,Docker / Kubernetes,docker-kubernetes,คอนเทนเนอร์ (Docker/Kubernetes),tool,Cloud & IT Infrastructure,2.E.13.c,http://data.europa.eu/esco/skill/containerization
+35,Linux / System Administration,linux-sysadmin,การดูแลระบบลินุกซ์และเซิร์ฟเวอร์,technical,Cloud & IT Infrastructure,2.E.13.c,http://data.europa.eu/esco/skill/linux-admin
+36,Network / IT Support,network-it-support,เครือข่ายและซัพพอร์ตไอที,technical,Cloud & IT Infrastructure,2.E.10.b,http://data.europa.eu/esco/skill/it-support
+37,Cybersecurity,cybersecurity,ความมั่นคงปลอดภัยไซเบอร์,technical,Cloud & IT Infrastructure,2.E.13.c,http://data.europa.eu/esco/skill/cybersecurity
+38,POS / Hardware Maintenance,pos-hardware,ระบบขายหน้าร้าน (POS) และอุปกรณ์,technical,Cloud & IT Infrastructure,2.E.10.b,http://data.europa.eu/esco/skill/pos-systems
+39,SAP / ERP,sap-erp,ระบบ SAP และ ERP,tool,ERP & Accounting Software,2.E.2.b,http://data.europa.eu/esco/skill/erp-systems
+40,Express Accounting,express-accounting,โปรแกรมบัญชี Express,tool,ERP & Accounting Software,2.E.2.a,http://data.europa.eu/esco/skill/accounting-software
+41,HRIS / Payroll Software,hris-payroll-software,โปรแกรม HRIS และเงินเดือน,tool,ERP & Accounting Software,2.E.1.c,http://data.europa.eu/esco/skill/hr-software
+42,CRM Software,crm-software,ระบบบริหารลูกค้าสัมพันธ์ (CRM),tool,ERP & Accounting Software,2.E.6.c,http://data.europa.eu/esco/skill/crm-software
+43,Adobe Photoshop,adobe-photoshop,อะโดบี โฟโต้ชอป,tool,Design & Media,2.E.4.b,http://data.europa.eu/esco/skill/graphic-design-tools
+44,Adobe Illustrator,adobe-illustrator,อะโดบี อิลลัสเตรเตอร์,tool,Design & Media,2.E.4.b,http://data.europa.eu/esco/skill/vector-graphics
+45,Canva,canva,แคนวา (Canva),tool,Design & Media,2.E.4.b,http://data.europa.eu/esco/skill/canva
+46,Figma / UI-UX Design,figma-ui-ux,การออกแบบ UI/UX และ Figma,tool,Design & Media,2.E.4.g,http://data.europa.eu/esco/skill/ui-ux-design
+47,Video Editing & Production,video-editing,ตัดต่อและผลิตวิดีโอ,technical,Design & Media,2.E.4.c,http://data.europa.eu/esco/skill/video-editing
+48,Graphic Design,graphic-design,การออกแบบกราฟิก,technical,Design & Media,2.E.4.b,http://data.europa.eu/esco/skill/graphic-design
+49,Photography / Media Shooting,photography,การถ่ายภาพและถ่ายทำสื่อ,technical,Design & Media,2.E.4.c,http://data.europa.eu/esco/skill/photography
+50,AutoCAD,autocad,ออโต้แคด (AutoCAD),tool,Engineering & CAD,2.E.9.c,http://data.europa.eu/esco/skill/autocad
+51,SolidWorks,solidworks,โซลิดเวิร์กส์ (SolidWorks),tool,Engineering & CAD,2.E.9.c,http://data.europa.eu/esco/skill/cad-3d
+52,BIM / Revit,bim-revit,การจำลองสารสนเทศอาคาร (BIM/Revit),tool,Engineering & CAD,2.E.9.c,http://data.europa.eu/esco/skill/bim
+53,SketchUp,sketchup,สเก็ตช์อัป (SketchUp),tool,Engineering & CAD,2.E.9.c,http://data.europa.eu/esco/skill/3d-modeling
+54,Accounting,accounting,การบัญชีและปิดงบ,technical,Accounting & Finance,2.E.2.a,http://data.europa.eu/esco/skill/accounting
+55,Tax,tax,ภาษีอากร (ภ.ง.ด./VAT),technical,Accounting & Finance,2.E.2.a,http://data.europa.eu/esco/skill/taxation
+56,Auditing & Internal Control,auditing,การตรวจสอบบัญชีและควบคุมภายใน,technical,Accounting & Finance,2.E.2.d,http://data.europa.eu/esco/skill/auditing
+57,Financial Analysis & Budgeting,financial-analysis,การวิเคราะห์การเงินและงบประมาณ,technical,Accounting & Finance,2.E.2.d,http://data.europa.eu/esco/skill/financial-analysis
+58,Credit Analysis & Debt Collection,credit-collection,การวิเคราะห์สินเชื่อและติดตามหนี้,technical,Accounting & Finance,2.E.2.d,http://data.europa.eu/esco/skill/credit-management
+59,Cost Estimation / BOQ,cost-estimation-boq,การประมาณราคาและถอดแบบ BOQ,technical,Accounting & Finance,2.E.1.e,http://data.europa.eu/esco/skill/cost-estimation
+60,Sales & Closing,sales-closing,การขายและการปิดการขาย,technical,Sales & Marketing,2.E.1.l,http://data.europa.eu/esco/skill/sales
+61,B2B Sales & Key Account,b2b-key-account,การขายองค์กรและดูแลลูกค้ารายใหญ่,technical,Sales & Marketing,2.E.1.l,http://data.europa.eu/esco/skill/b2b-sales
+62,Merchandising & Store Display,merchandising,การจัดเรียงสินค้าและดูแลหน้าร้าน,technical,Sales & Marketing,2.E.1.l,http://data.europa.eu/esco/skill/merchandising
+63,Digital Marketing & Paid Ads,digital-marketing,การตลาดดิจิทัลและยิงโฆษณา,technical,Sales & Marketing,2.E.1.l,http://data.europa.eu/esco/skill/digital-marketing
+64,Content Marketing & Copywriting,content-marketing,การผลิตคอนเทนต์และเขียนโฆษณา,technical,Sales & Marketing,2.E.5.a,http://data.europa.eu/esco/skill/content-creation
+65,Social Media & KOL Management,social-media-kol,การดูแลโซเชียลมีเดียและอินฟลูเอนเซอร์,technical,Sales & Marketing,2.E.1.l,http://data.europa.eu/esco/skill/social-media-marketing
+66,SEO / SEM,seo-sem,การทำ SEO และ SEM,technical,Sales & Marketing,2.E.1.l,http://data.europa.eu/esco/skill/seo
+67,Market Research & Campaign Analysis,market-research,การวิจัยตลาดและวิเคราะห์แคมเปญ,technical,Sales & Marketing,2.E.9.d,http://data.europa.eu/esco/skill/market-research
+68,Event & Promotion Management,event-management,การจัดกิจกรรมส่งเสริมการขายและอีเวนต์,technical,Sales & Marketing,2.E.4.h,http://data.europa.eu/esco/skill/event-management
+69,E-Commerce Operations,ecommerce-operations,การบริหารร้านค้าอีคอมเมิร์ซ,technical,Sales & Marketing,2.E.1.l,http://data.europa.eu/esco/skill/ecommerce
+70,Customer Service,customer-service,การบริการลูกค้า,technical,Sales & Marketing,2.E.6.c,http://data.europa.eu/esco/skill/customer-service
+71,Purchasing & Sourcing,purchasing-sourcing,การจัดซื้อและจัดหาผู้ขาย,technical,Supply Chain & Logistics,2.E.1.e,http://data.europa.eu/esco/skill/procurement
+72,Inventory & Stock Control,inventory-control,การควบคุมสต็อกและสินค้าคงคลัง,technical,Supply Chain & Logistics,2.E.2.b,http://data.europa.eu/esco/skill/inventory-management
+73,Warehouse & Logistics,warehouse-logistics,การจัดการคลังสินค้าและโลจิสติกส์,technical,Supply Chain & Logistics,2.E.2.b,http://data.europa.eu/esco/skill/logistics
+74,Import / Export & Customs,import-export-customs,การนำเข้า-ส่งออกและพิธีการศุลกากร,technical,Supply Chain & Logistics,2.E.5.b,http://data.europa.eu/esco/skill/import-export
+75,Supply Chain & Production Planning,supply-chain-planning,การวางแผนห่วงโซ่อุปทานและการผลิต,technical,Supply Chain & Logistics,2.E.1.e,http://data.europa.eu/esco/skill/production-planning
+76,Recruitment & Talent Acquisition,recruitment,การสรรหาและคัดเลือกบุคลากร,technical,HR & Legal,2.E.1.c,http://data.europa.eu/esco/skill/recruitment
+77,Payroll & Benefits Administration,payroll-benefits,การทำเงินเดือนและสวัสดิการ,technical,HR & Legal,2.E.1.c,http://data.europa.eu/esco/skill/payroll
+78,Training & People Development,training-development,การฝึกอบรมและพัฒนาบุคลากร,technical,HR & Legal,2.E.1.c,http://data.europa.eu/esco/skill/training
+79,Labour Law & Compliance,labour-law,กฎหมายแรงงานและความสอดคล้องกฎระเบียบ,technical,HR & Legal,2.E.5.b,http://data.europa.eu/esco/skill/labour-law
+80,Visa & Work Permit / BOI,visa-work-permit,งานวีซ่า ใบอนุญาตทำงาน และ BOI,technical,HR & Legal,2.E.5.b,http://data.europa.eu/esco/skill/immigration-compliance
+81,Document Control & Administration,document-control,การควบคุมเอกสารและงานธุรการ,technical,HR & Legal,2.E.5.b,http://data.europa.eu/esco/skill/document-control
+82,Project Management,project-management,การบริหารโครงการ,technical,HR & Legal,2.E.1.e,http://data.europa.eu/esco/skill/project-management
+83,ISO / GMP / HACCP,iso-gmp-haccp,มาตรฐานคุณภาพ ISO / GMP / HACCP,technical,Manufacturing & Quality,2.E.5.b,http://data.europa.eu/esco/skill/quality-standards
+84,Lean / Kaizen / 5S,lean-kaizen-5s,ลีน ไคเซ็น และ 5ส,technical,Manufacturing & Quality,2.E.5.a,http://data.europa.eu/esco/skill/lean-manufacturing
+85,QC / QA Inspection,qc-qa,การควบคุมและประกันคุณภาพ (QC/QA),technical,Manufacturing & Quality,2.E.9.d,http://data.europa.eu/esco/skill/quality-control
+86,Production Operations,production-operations,การปฏิบัติการและควบคุมสายการผลิต,technical,Manufacturing & Quality,2.E.9.k,http://data.europa.eu/esco/skill/manufacturing-ops
+87,Occupational Safety / HSE,safety-hse,ความปลอดภัย อาชีวอนามัย และสิ่งแวดล้อม (จป./HSE),technical,Manufacturing & Quality,2.E.5.b,http://data.europa.eu/esco/skill/occupational-safety
+88,CSR & Sustainability,csr-sustainability,ชุมชนสัมพันธ์และความยั่งยืน (CSR/ESG),technical,Manufacturing & Quality,2.E.5.a,http://data.europa.eu/esco/skill/sustainability
+89,PLC / Industrial Automation,plc-automation,ระบบอัตโนมัติและ PLC,technical,Engineering & Maintenance,2.E.9.k,http://data.europa.eu/esco/skill/plc-automation
+90,Electrical Systems,electrical-systems,ระบบไฟฟ้าและงานไฟฟ้ากำลัง,technical,Engineering & Maintenance,2.E.9.c,http://data.europa.eu/esco/skill/electrical-engineering
+91,Mechanical & Maintenance (PM/CM),mechanical-maintenance,วิศวกรรมเครื่องกลและซ่อมบำรุง,technical,Engineering & Maintenance,2.E.9.c,http://data.europa.eu/esco/skill/maintenance-engineering
+92,HVAC & Refrigeration,hvac-refrigeration,ระบบปรับอากาศและทำความเย็น,technical,Engineering & Maintenance,2.E.9.c,http://data.europa.eu/esco/skill/hvac
+93,Welding & Metalwork,welding,งานเชื่อมและประกอบโลหะ,technical,Engineering & Maintenance,2.E.9.k,http://data.europa.eu/esco/skill/welding
+94,CNC / Machining,cnc-machining,งานกลึงและเครื่องจักรกล CNC,technical,Engineering & Maintenance,2.E.9.k,http://data.europa.eu/esco/skill/cnc-machining
+95,Civil & Construction Supervision,civil-construction,วิศวกรรมโยธาและควบคุมงานก่อสร้าง,technical,Engineering & Maintenance,2.E.1.e,http://data.europa.eu/esco/skill/civil-engineering
+96,Solar / Renewable Energy,solar-renewable,ระบบพลังงานแสงอาทิตย์และพลังงานทดแทน,technical,Engineering & Maintenance,2.E.9.c,http://data.europa.eu/esco/skill/renewable-energy
+97,Forklift Operation,forklift,การขับและใช้งานรถโฟล์คลิฟท์,technical,Engineering & Maintenance,2.E.9.k,http://data.europa.eu/esco/skill/forklift-operation
+98,Food & Beverage Preparation,food-beverage-prep,การประกอบอาหาร เครื่องดื่ม และบาริสต้า,technical,Healthcare & Service,2.E.5.a,http://data.europa.eu/esco/skill/food-preparation
+99,Hotel & Front Office Operations,hotel-front-office,งานต้อนรับ จองห้องพัก และบริการโรงแรม,technical,Healthcare & Service,2.E.4.h,http://data.europa.eu/esco/skill/hospitality
+100,Nursing & Clinical Care,nursing-clinical,การพยาบาลและดูแลผู้ป่วย,technical,Healthcare & Service,2.E.9.i,http://data.europa.eu/esco/skill/nursing
+101,Medical Aesthetics & Clinic Care,medical-aesthetics,การดูแลความงามและงานคลินิก,technical,Healthcare & Service,2.E.9.i,http://data.europa.eu/esco/skill/clinical-support
+102,Teaching & Coaching,teaching-coaching,การสอนงานและถ่ายทอดความรู้,technical,Healthcare & Service,2.E.4.f,http://data.europa.eu/esco/skill/teaching
+103,Agricultural Extension & Agronomy,agriculture-agronomy,งานส่งเสริมเกษตรและพืชศาสตร์,technical,Healthcare & Service,2.E.8.h,http://data.europa.eu/esco/skill/agronomy
+104,Communication,communication,ทักษะการสื่อสารและประสานงาน,soft,Soft Skills,2.A.1.d,http://data.europa.eu/esco/skill/communication
+105,Teamwork & Collaboration,teamwork,การทำงานเป็นทีม,soft,Soft Skills,2.B.1.a,http://data.europa.eu/esco/skill/teamwork
+106,Leadership & Team Management,leadership,ภาวะผู้นำและการบริหารทีม,soft,Soft Skills,2.B.1.b,http://data.europa.eu/esco/skill/leadership
+107,Problem Solving & Analytical Thinking,problem-solving,การแก้ไขปัญหาและการคิดวิเคราะห์,soft,Soft Skills,2.A.2.a,http://data.europa.eu/esco/skill/problem-solving
+108,Negotiation & Persuasion,negotiation,การเจรจาต่อรองและโน้มน้าวใจ,soft,Soft Skills,2.B.1.c,http://data.europa.eu/esco/skill/negotiation
+109,Service Mind,service-mind,ใจรักงานบริการ (Service Mind),soft,Soft Skills,2.B.1.d,http://data.europa.eu/esco/skill/service-orientation
+110,Time Management & Multitasking,time-management,การบริหารเวลาและการทำงานหลายด้าน,soft,Soft Skills,2.B.5.a,http://data.europa.eu/esco/skill/time-management
+111,Presentation Skills,presentation-skills,การนำเสนอผลงาน,soft,Soft Skills,2.A.1.d,http://data.europa.eu/esco/skill/presenting
+112,Adaptability & Stress Tolerance,adaptability,ความยืดหยุ่นและรับมือความกดดัน,soft,Soft Skills,2.B.1.a,http://data.europa.eu/esco/skill/adaptability
+113,Attention to Detail & Integrity,detail-integrity,ความละเอียดรอบคอบและความซื่อสัตย์,soft,Soft Skills,2.A.2.a,http://data.europa.eu/esco/skill/attention-to-detail
+114,English,english,ภาษาอังกฤษ,language,Languages,2.A.1.a,http://data.europa.eu/esco/skill/english
+115,Chinese (Mandarin),chinese-mandarin,ภาษาจีน,language,Languages,2.A.1.a,http://data.europa.eu/esco/skill/chinese
+116,Japanese,japanese,ภาษาญี่ปุ่น,language,Languages,2.A.1.a,http://data.europa.eu/esco/skill/japanese
+117,Korean,korean,ภาษาเกาหลี,language,Languages,2.A.1.a,http://data.europa.eu/esco/skill/korean
+118,Translation & Interpretation,translation-interpretation,การแปลเอกสารและล่าม,language,Languages,2.A.1.b,http://data.europa.eu/esco/skill/translation
+119,Driving Licence (Car),driving-licence-car,ใบอนุญาตขับขี่รถยนต์,licence,Licences & Certifications,4.A.3.a,http://data.europa.eu/esco/skill/driving-licence-b
+120,Driving Licence (Motorcycle),driving-licence-motorcycle,ใบอนุญาตขับขี่รถจักรยานยนต์,licence,Licences & Certifications,4.A.3.a,http://data.europa.eu/esco/skill/driving-licence-a
+121,Heavy Truck Licence (ท.2/บ.2),truck-licence,ใบอนุญาตขับขี่รถบรรทุก (ท.2/บ.2/ท.3),licence,Licences & Certifications,4.A.3.a,http://data.europa.eu/esco/skill/driving-licence-c
+122,Engineering Licence (กว.),engineering-licence,ใบประกอบวิชาชีพวิศวกรรม (กว.),licence,Licences & Certifications,2.E.9.c,http://data.europa.eu/esco/skill/engineering-certification
+123,Safety Officer Licence (จป.),safety-officer-licence,ใบรับรองเจ้าหน้าที่ความปลอดภัย (จป.),licence,Licences & Certifications,2.E.5.b,http://data.europa.eu/esco/skill/safety-officer-cert
+124,CPA / CPD Accounting Licence,cpa-cpd-licence,ใบอนุญาตผู้ทำบัญชี/สอบบัญชี (CPD/CPA),licence,Licences & Certifications,2.E.2.a,http://data.europa.eu/esco/skill/accountant-licence
+125,Nursing / Medical Licence,medical-licence,ใบประกอบวิชาชีพการพยาบาล/เวชกรรม,licence,Licences & Certifications,2.E.9.i,http://data.europa.eu/esco/skill/medical-licence
+126,Electrical Technician Licence,electrical-licence,หนังสือรับรองความรู้ความสามารถช่างไฟฟ้า,licence,Licences & Certifications,2.E.9.c,http://data.europa.eu/esco/skill/electrical-cert
+127,Forklift Certificate,forklift-cert,ใบรับรองการขับรถโฟล์คลิฟท์,licence,Licences & Certifications,4.A.3.a,http://data.europa.eu/esco/skill/forklift-cert
+128,TOEIC / IELTS Certificate,toeic-ielts,ผลสอบภาษาอังกฤษ TOEIC / IELTS,licence,Licences & Certifications,2.A.1.a,http://data.europa.eu/esco/skill/english-proficiency

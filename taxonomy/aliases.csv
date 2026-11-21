@@ -1,0 +1,569 @@
+alias,skill_canonical,lang,match_type,status
+excel,Microsoft Excel,en,word_boundary,approved
+ms excel,Microsoft Excel,en,word_boundary,approved
+microsoft excel,Microsoft Excel,en,word_boundary,approved
+เอ็กเซล,Microsoft Excel,th,exact,approved
+เอกเซล,Microsoft Excel,th,exact,approved
+เอ๊กเซล,Microsoft Excel,th,exact,approved
+เอ็กซ์เซล,Microsoft Excel,th,exact,approved
+โปรแกรม excel,Microsoft Excel,th,exact,approved
+vlookup,Microsoft Excel,en,word_boundary,approved
+pivot table,Microsoft Excel,en,word_boundary,approved
+word,Microsoft Word,en,word_boundary,approved
+ms word,Microsoft Word,en,word_boundary,approved
+microsoft word,Microsoft Word,en,word_boundary,approved
+เวิร์ด,Microsoft Word,th,exact,approved
+เวิร์ดส์,Microsoft Word,th,exact,approved
+ไมโครซอฟท์ เวิร์ด,Microsoft Word,th,exact,approved
+โปรแกรม word,Microsoft Word,th,exact,approved
+powerpoint,Microsoft PowerPoint,en,word_boundary,approved
+power point,Microsoft PowerPoint,en,word_boundary,approved
+ms powerpoint,Microsoft PowerPoint,en,word_boundary,approved
+พาวเวอร์พอยท์,Microsoft PowerPoint,th,exact,approved
+พาวเวอร์พอยต์,Microsoft PowerPoint,th,exact,approved
+เพาเวอร์พอยท์,Microsoft PowerPoint,th,exact,approved
+ms office,Microsoft Office,en,word_boundary,approved
+ms. office,Microsoft Office,en,word_boundary,approved
+microsoft office,Microsoft Office,en,word_boundary,approved
+โปรแกรม office,Microsoft Office,th,exact,approved
+โปรแกรมออฟฟิศ,Microsoft Office,th,exact,approved
+ไมโครซอฟท์ออฟฟิศ,Microsoft Office,th,exact,approved
+ไมโครซอฟท์ ออฟฟิศ,Microsoft Office,th,exact,approved
+คอมพิวเตอร์พื้นฐาน,Microsoft Office,th,exact,approved
+โปรแกรมสำนักงาน,Microsoft Office,th,exact,approved
+google workspace,Google Workspace,en,word_boundary,approved
+google sheets,Google Workspace,en,word_boundary,approved
+google sheet,Google Workspace,en,word_boundary,approved
+google docs,Google Workspace,en,word_boundary,approved
+กูเกิลชีท,Google Workspace,th,exact,approved
+power bi,Power BI,en,word_boundary,approved
+powerbi,Power BI,en,word_boundary,approved
+พาวเวอร์บีไอ,Power BI,th,exact,approved
+tableau,Tableau,en,word_boundary,approved
+แท็บโบล,Tableau,th,exact,approved
+looker studio,Looker Studio,en,word_boundary,approved
+google data studio,Looker Studio,en,word_boundary,approved
+data studio,Looker Studio,en,word_boundary,approved
+sql,SQL,en,word_boundary,approved
+t-sql,SQL,en,word_boundary,approved
+pl/sql,SQL,en,word_boundary,approved
+ภาษา sql,SQL,th,exact,approved
+python,Python,en,word_boundary,approved
+ภาษา python,Python,th,exact,approved
+ไพทอน,Python,th,exact,approved
+ไพธอน,Python,th,exact,approved
+(?<![A-Za-z0-9&/.-])R(?![A-Za-z0-9&/.-]),R Programming,en,regex,approved
+r programming,R Programming,en,word_boundary,approved
+r language,R Programming,en,word_boundary,approved
+r studio,R Programming,en,word_boundary,approved
+rstudio,R Programming,en,word_boundary,approved
+ภาษา r,R Programming,th,exact,approved
+data analysis,Data Analysis,en,word_boundary,approved
+data analytics,Data Analysis,en,word_boundary,approved
+วิเคราะห์ข้อมูล,Data Analysis,th,exact,approved
+การวิเคราะห์ข้อมูล,Data Analysis,th,exact,approved
+statistics,Statistics,en,word_boundary,approved
+statistical analysis,Statistics,en,word_boundary,approved
+สถิติ,Statistics,th,exact,approved
+machine learning,Machine Learning / AI,en,word_boundary,approved
+deep learning,Machine Learning / AI,en,word_boundary,approved
+scikit-learn,Machine Learning / AI,en,word_boundary,approved
+tensorflow,Machine Learning / AI,en,word_boundary,approved
+pytorch,Machine Learning / AI,en,word_boundary,approved
+generative ai,Machine Learning / AI,en,word_boundary,approved
+ปัญญาประดิษฐ์,Machine Learning / AI,th,exact,approved
+etl,ETL / Data Engineering,en,word_boundary,approved
+data pipeline,ETL / Data Engineering,en,word_boundary,approved
+data warehouse,ETL / Data Engineering,en,word_boundary,approved
+คลังข้อมูล,ETL / Data Engineering,th,exact,approved
+airflow,ETL / Data Engineering,en,word_boundary,approved
+pyspark,ETL / Data Engineering,en,word_boundary,approved
+mysql,MySQL,en,word_boundary,approved
+postgresql,PostgreSQL,en,word_boundary,approved
+postgres,PostgreSQL,en,word_boundary,approved
+sql server,Microsoft SQL Server,en,word_boundary,approved
+mssql,Microsoft SQL Server,en,word_boundary,approved
+java,Java,en,word_boundary,approved
+spring boot,Java,en,word_boundary,approved
+ภาษา java,Java,th,exact,approved
+javascript,JavaScript / TypeScript,en,word_boundary,approved
+typescript,JavaScript / TypeScript,en,word_boundary,approved
+\bjs\b,JavaScript / TypeScript,en,regex,approved
+react,React / Frontend Frameworks,en,word_boundary,approved
+reactjs,React / Frontend Frameworks,en,word_boundary,approved
+next.js,React / Frontend Frameworks,en,word_boundary,approved
+nextjs,React / Frontend Frameworks,en,word_boundary,approved
+vue.js,React / Frontend Frameworks,en,word_boundary,approved
+vuejs,React / Frontend Frameworks,en,word_boundary,approved
+angular,React / Frontend Frameworks,en,word_boundary,approved
+node.js,Node.js,en,word_boundary,approved
+nodejs,Node.js,en,word_boundary,approved
+html,HTML / CSS,en,word_boundary,approved
+css,HTML / CSS,en,word_boundary,approved
+tailwind,HTML / CSS,en,word_boundary,approved
+php,PHP / Laravel,en,word_boundary,approved
+laravel,PHP / Laravel,en,word_boundary,approved
+c#,C# / .NET,en,exact,approved
+.net,C# / .NET,en,exact,approved
+dotnet,C# / .NET,en,word_boundary,approved
+asp.net,C# / .NET,en,word_boundary,approved
+(?<![A-Za-z0-9&/.-])C(?![A-Za-z0-9&/.+#-]),C Programming,en,regex,approved
+c programming,C Programming,en,word_boundary,approved
+c language,C Programming,en,word_boundary,approved
+ภาษา c,C Programming,th,exact,approved
+c++,C++,en,exact,approved
+golang,Go (Golang),en,word_boundary,approved
+go language,Go (Golang),en,word_boundary,approved
+go programming,Go (Golang),en,word_boundary,approved
+ภาษา go,Go (Golang),th,exact,approved
+flutter,Mobile App Development,en,word_boundary,approved
+react native,Mobile App Development,en,word_boundary,approved
+kotlin,Mobile App Development,en,word_boundary,approved
+swift,Mobile App Development,en,word_boundary,approved
+rest api,REST API / Microservices,en,word_boundary,approved
+restful api,REST API / Microservices,en,word_boundary,approved
+microservices,REST API / Microservices,en,word_boundary,approved
+graphql,REST API / Microservices,en,word_boundary,approved
+git,Git / Version Control,en,word_boundary,approved
+github,Git / Version Control,en,word_boundary,approved
+gitlab,Git / Version Control,en,word_boundary,approved
+software testing,Software Testing / QA,en,word_boundary,approved
+automated test,Software Testing / QA,en,word_boundary,approved
+selenium,Software Testing / QA,en,word_boundary,approved
+playwright,Software Testing / QA,en,word_boundary,approved
+aws,Cloud Computing (AWS/Azure/GCP),en,word_boundary,approved
+amazon web services,Cloud Computing (AWS/Azure/GCP),en,word_boundary,approved
+azure,Cloud Computing (AWS/Azure/GCP),en,word_boundary,approved
+gcp,Cloud Computing (AWS/Azure/GCP),en,word_boundary,approved
+google cloud,Cloud Computing (AWS/Azure/GCP),en,word_boundary,approved
+docker,Docker / Kubernetes,en,word_boundary,approved
+kubernetes,Docker / Kubernetes,en,word_boundary,approved
+k8s,Docker / Kubernetes,en,word_boundary,approved
+linux,Linux / System Administration,en,word_boundary,approved
+ubuntu,Linux / System Administration,en,word_boundary,approved
+active directory,Linux / System Administration,en,word_boundary,approved
+vmware,Linux / System Administration,en,word_boundary,approved
+it support,Network / IT Support,en,word_boundary,approved
+helpdesk,Network / IT Support,en,word_boundary,approved
+help desk,Network / IT Support,en,word_boundary,approved
+network engineer,Network / IT Support,en,word_boundary,approved
+network admin,Network / IT Support,en,word_boundary,approved
+cisco,Network / IT Support,en,word_boundary,approved
+mikrotik,Network / IT Support,en,word_boundary,approved
+lan/wan,Network / IT Support,en,word_boundary,approved
+ซ่อมคอม,Network / IT Support,th,exact,approved
+ระบบเครือข่าย,Network / IT Support,th,exact,approved
+วางระบบ network,Network / IT Support,th,exact,approved
+cybersecurity,Cybersecurity,en,word_boundary,approved
+information security,Cybersecurity,en,word_boundary,approved
+iso 27001,Cybersecurity,en,word_boundary,approved
+firewall,Cybersecurity,en,word_boundary,approved
+ความปลอดภัยไซเบอร์,Cybersecurity,th,exact,approved
+เครื่อง pos,POS / Hardware Maintenance,th,exact,approved
+ระบบ pos,POS / Hardware Maintenance,th,exact,approved
+ยอด pos,POS / Hardware Maintenance,th,exact,approved
+pos system,POS / Hardware Maintenance,en,word_boundary,approved
+sap,SAP / ERP,en,word_boundary,approved
+erp,SAP / ERP,en,word_boundary,approved
+ระบบ sap,SAP / ERP,th,exact,approved
+โปรแกรมบัญชี express,Express Accounting,th,exact,approved
+โปรแกรม express,Express Accounting,th,exact,approved
+express accounting,Express Accounting,en,word_boundary,approved
+\bexpress\b(?=\s*(?:บ|บัญชี|โปรแกรม|accounting|software))|(?<=โปรแกรม\s)express\b|(?<=บัญชี\s)express\b,Express Accounting,th,regex,approved
+hris,HRIS / Payroll Software,en,word_boundary,approved
+bplus,HRIS / Payroll Software,en,word_boundary,approved
+โปรแกรมเงินเดือน,HRIS / Payroll Software,th,exact,approved
+crm,CRM Software,en,word_boundary,approved
+salesforce,CRM Software,en,word_boundary,approved
+hubspot,CRM Software,en,word_boundary,approved
+photoshop,Adobe Photoshop,en,word_boundary,approved
+โฟโต้ชอป,Adobe Photoshop,th,exact,approved
+โฟโต้ช็อป,Adobe Photoshop,th,exact,approved
+illustrator,Adobe Illustrator,en,word_boundary,approved
+อิลลัสเตรเตอร์,Adobe Illustrator,th,exact,approved
+อิลัส,Adobe Illustrator,th,exact,approved
+canva,Canva,en,word_boundary,approved
+แคนวา,Canva,th,exact,approved
+figma,Figma / UI-UX Design,en,word_boundary,approved
+ui/ux,Figma / UI-UX Design,en,word_boundary,approved
+ux/ui,Figma / UI-UX Design,en,word_boundary,approved
+premiere pro,Video Editing & Production,en,word_boundary,approved
+premiere,Video Editing & Production,en,word_boundary,approved
+capcut,Video Editing & Production,en,word_boundary,approved
+final cut,Video Editing & Production,en,word_boundary,approved
+after effects,Video Editing & Production,en,word_boundary,approved
+ตัดต่อวิดีโอ,Video Editing & Production,th,exact,approved
+ตัดต่อภาพ,Video Editing & Production,th,exact,approved
+ตัดต่อ,Video Editing & Production,th,exact,approved
+graphic design,Graphic Design,en,word_boundary,approved
+ออกแบบกราฟิก,Graphic Design,th,exact,approved
+ออกแบบภาพกราฟฟิก,Graphic Design,th,exact,approved
+กราฟฟิก,Graphic Design,th,exact,approved
+กราฟิก,Graphic Design,th,exact,approved
+ถ่ายภาพ,Photography / Media Shooting,th,exact,approved
+ถ่ายวิดีโอ,Photography / Media Shooting,th,exact,approved
+ถ่ายทำ,Photography / Media Shooting,th,exact,approved
+photography,Photography / Media Shooting,en,word_boundary,approved
+autocad,AutoCAD,en,word_boundary,approved
+auto cad,AutoCAD,en,word_boundary,approved
+ออโต้แคด,AutoCAD,th,exact,approved
+เขียนแบบวิศวกรรม,AutoCAD,th,exact,approved
+solidworks,SolidWorks,en,word_boundary,approved
+solid works,SolidWorks,en,word_boundary,approved
+revit,BIM / Revit,en,word_boundary,approved
+bim modeling,BIM / Revit,en,word_boundary,approved
+\bbim\b,BIM / Revit,en,regex,approved
+sketchup,SketchUp,en,word_boundary,approved
+accounting,Accounting,en,word_boundary,approved
+account payable,Accounting,en,word_boundary,approved
+account receivable,Accounting,en,word_boundary,approved
+บัญชี,Accounting,th,exact,approved
+ปิดงบ,Accounting,th,exact,approved
+กระทบยอด,Accounting,th,exact,approved
+ใบกำกับภาษี,Accounting,th,exact,approved
+วางบิล,Accounting,th,exact,approved
+ออกใบเสร็จ,Accounting,th,exact,approved
+ภาษี,Tax,th,exact,approved
+หัก ณ ที่จ่าย,Tax,th,exact,approved
+ภ.ง.ด,Tax,th,exact,approved
+ภพ.30,Tax,th,exact,approved
+\btax\b,Tax,en,regex,approved
+taxation,Tax,en,word_boundary,approved
+auditing,Auditing & Internal Control,en,word_boundary,approved
+internal audit,Auditing & Internal Control,en,word_boundary,approved
+ตรวจสอบบัญชี,Auditing & Internal Control,th,exact,approved
+ควบคุมภายใน,Auditing & Internal Control,th,exact,approved
+financial analysis,Financial Analysis & Budgeting,en,word_boundary,approved
+budgeting,Financial Analysis & Budgeting,en,word_boundary,approved
+งบประมาณ,Financial Analysis & Budgeting,th,exact,approved
+วิเคราะห์การเงิน,Financial Analysis & Budgeting,th,exact,approved
+วิเคราะห์สินเชื่อ,Credit Analysis & Debt Collection,th,exact,approved
+ติดตามหนี้,Credit Analysis & Debt Collection,th,exact,approved
+อนุมัติสินเชื่อ,Credit Analysis & Debt Collection,th,exact,approved
+รับชำระค่างวด,Credit Analysis & Debt Collection,th,exact,approved
+credit analysis,Credit Analysis & Debt Collection,en,word_boundary,approved
+\bboq\b,Cost Estimation / BOQ,en,regex,approved
+ถอดแบบ,Cost Estimation / BOQ,th,exact,approved
+ประมาณราคา,Cost Estimation / BOQ,th,exact,approved
+cost estimate,Cost Estimation / BOQ,en,word_boundary,approved
+quantity take-off,Cost Estimation / BOQ,en,word_boundary,approved
+\bsales\b,Sales & Closing,en,regex,approved
+\btelesales?\b,Sales & Closing,en,regex,approved
+"(?:^|[\s,•:/(-])ขาย(?=$|[\s,/)-])",Sales & Closing,th,regex,approved
+งานขาย,Sales & Closing,th,exact,approved
+ฝ่ายขาย,Sales & Closing,th,exact,approved
+พนักงานขาย,Sales & Closing,th,exact,approved
+ทีมขาย,Sales & Closing,th,exact,approved
+นักขาย,Sales & Closing,th,exact,approved
+เสนอขาย,Sales & Closing,th,exact,approved
+ปิดการขาย,Sales & Closing,th,exact,approved
+เชียร์ขาย,Sales & Closing,th,exact,approved
+ขายสินค้า,Sales & Closing,th,exact,approved
+ขายผลิตภัณฑ์,Sales & Closing,th,exact,approved
+ทักษะการขาย,Sales & Closing,th,exact,approved
+เป้าการขาย,Sales & Closing,th,exact,approved
+\bb2b\b,B2B Sales & Key Account,en,regex,approved
+key account,B2B Sales & Key Account,en,word_boundary,approved
+distributor,B2B Sales & Key Account,en,word_boundary,approved
+ลูกค้าองค์กร,B2B Sales & Key Account,th,exact,approved
+ขยายฐานลูกค้า,B2B Sales & Key Account,th,exact,approved
+จัดเรียงสินค้า,Merchandising & Store Display,th,exact,approved
+เติมสินค้า,Merchandising & Store Display,th,exact,approved
+ติดป้ายราคา,Merchandising & Store Display,th,exact,approved
+merchandising,Merchandising & Store Display,en,word_boundary,approved
+digital marketing,Digital Marketing & Paid Ads,en,word_boundary,approved
+การตลาดออนไลน์,Digital Marketing & Paid Ads,th,exact,approved
+การตลาดดิจิทัล,Digital Marketing & Paid Ads,th,exact,approved
+การตลาดดิจิตอล,Digital Marketing & Paid Ads,th,exact,approved
+facebook ads,Digital Marketing & Paid Ads,en,word_boundary,approved
+google ads,Digital Marketing & Paid Ads,en,word_boundary,approved
+ยิงแอด,Digital Marketing & Paid Ads,th,exact,approved
+มาร์เก็ตติ้ง,Digital Marketing & Paid Ads,th,exact,approved
+มาร์เกตติ้ง,Digital Marketing & Paid Ads,th,exact,approved
+ผลิตคอนเทนต์,Content Marketing & Copywriting,th,exact,approved
+สร้างคอนเทนต์,Content Marketing & Copywriting,th,exact,approved
+เขียนบทความ,Content Marketing & Copywriting,th,exact,approved
+content creator,Content Marketing & Copywriting,en,word_boundary,approved
+copywriting,Content Marketing & Copywriting,en,word_boundary,approved
+social media,Social Media & KOL Management,en,word_boundary,approved
+influencer,Social Media & KOL Management,en,word_boundary,approved
+\bkol\b,Social Media & KOL Management,en,regex,approved
+tiktok,Social Media & KOL Management,en,word_boundary,approved
+\bseo\b,SEO / SEM,en,regex,approved
+\bsem\b,SEO / SEM,en,regex,approved
+วิจัยตลาด,Market Research & Campaign Analysis,th,exact,approved
+สรุปผลแคมเปญ,Market Research & Campaign Analysis,th,exact,approved
+พฤติกรรมผู้บริโภค,Market Research & Campaign Analysis,th,exact,approved
+market research,Market Research & Campaign Analysis,en,word_boundary,approved
+ส่งเสริมการขาย,Event & Promotion Management,th,exact,approved
+ออกบูธ,Event & Promotion Management,th,exact,approved
+จัดกิจกรรม,Event & Promotion Management,th,exact,approved
+event management,Event & Promotion Management,en,word_boundary,approved
+e-commerce,E-Commerce Operations,en,word_boundary,approved
+ecommerce,E-Commerce Operations,en,word_boundary,approved
+shopee,E-Commerce Operations,en,word_boundary,approved
+lazada,E-Commerce Operations,en,word_boundary,approved
+ขายออนไลน์,E-Commerce Operations,th,exact,approved
+บริการลูกค้า,Customer Service,th,exact,approved
+ให้บริการลูกค้า,Customer Service,th,exact,approved
+บริการหลังการขาย,Customer Service,th,exact,approved
+ลูกค้าสัมพันธ์,Customer Service,th,exact,approved
+ตอบแชท,Customer Service,th,exact,approved
+customer service,Customer Service,en,word_boundary,approved
+call center,Customer Service,en,word_boundary,approved
+คอลเซ็นเตอร์,Customer Service,th,exact,approved
+คอลเซนเตอร์,Customer Service,th,exact,approved
+จัดซื้อ,Purchasing & Sourcing,th,exact,approved
+จัดหาสินค้า,Purchasing & Sourcing,th,exact,approved
+สั่งซื้อสินค้า,Purchasing & Sourcing,th,exact,approved
+ใบเสนอราคา,Purchasing & Sourcing,th,exact,approved
+purchasing,Purchasing & Sourcing,en,word_boundary,approved
+procurement,Purchasing & Sourcing,en,word_boundary,approved
+สต๊อก,Inventory & Stock Control,th,exact,approved
+สต็อก,Inventory & Stock Control,th,exact,approved
+สินค้าคงคลัง,Inventory & Stock Control,th,exact,approved
+ตรวจนับสินค้า,Inventory & Stock Control,th,exact,approved
+inventory,Inventory & Stock Control,en,word_boundary,approved
+\bfifo\b,Inventory & Stock Control,en,regex,approved
+คลังสินค้า,Warehouse & Logistics,th,exact,approved
+โลจิสติกส์,Warehouse & Logistics,th,exact,approved
+โลจิสติก,Warehouse & Logistics,th,exact,approved
+ลอจิสติกส์,Warehouse & Logistics,th,exact,approved
+กระจายสินค้า,Warehouse & Logistics,th,exact,approved
+ขนส่งสินค้า,Warehouse & Logistics,th,exact,approved
+warehouse,Warehouse & Logistics,en,word_boundary,approved
+logistics,Warehouse & Logistics,en,word_boundary,approved
+fulfillment,Warehouse & Logistics,en,word_boundary,approved
+\bwms\b,Warehouse & Logistics,en,regex,approved
+นำเข้า-ส่งออก,Import / Export & Customs,th,exact,approved
+นำเข้าส่งออก,Import / Export & Customs,th,exact,approved
+ศุลกากร,Import / Export & Customs,th,exact,approved
+freight forwarder,Import / Export & Customs,en,word_boundary,approved
+shipment,Import / Export & Customs,en,word_boundary,approved
+incoterms,Import / Export & Customs,en,word_boundary,approved
+วางแผนการผลิต,Supply Chain & Production Planning,th,exact,approved
+supply chain,Supply Chain & Production Planning,en,word_boundary,approved
+production planning,Supply Chain & Production Planning,en,word_boundary,approved
+master plan,Supply Chain & Production Planning,en,word_boundary,approved
+สรรหาบุคลากร,Recruitment & Talent Acquisition,th,exact,approved
+สรรหาพนักงาน,Recruitment & Talent Acquisition,th,exact,approved
+สัมภาษณ์งาน,Recruitment & Talent Acquisition,th,exact,approved
+อัตรากำลัง,Recruitment & Talent Acquisition,th,exact,approved
+recruitment,Recruitment & Talent Acquisition,en,word_boundary,approved
+ทำเงินเดือน,Payroll & Benefits Administration,th,exact,approved
+ค่าจ้าง,Payroll & Benefits Administration,th,exact,approved
+สวัสดิการ,Payroll & Benefits Administration,th,exact,approved
+ประกันสังคม,Payroll & Benefits Administration,th,exact,approved
+payroll,Payroll & Benefits Administration,en,word_boundary,approved
+\bhr\b,Payroll & Benefits Administration,en,regex,approved
+ฝ่ายบุคคล,Payroll & Benefits Administration,th,exact,approved
+งานบุคคล,Payroll & Benefits Administration,th,exact,approved
+ทรัพยากรบุคคล,Payroll & Benefits Administration,th,exact,approved
+ฝึกอบรม,Training & People Development,th,exact,approved
+พัฒนาบุคลากร,Training & People Development,th,exact,approved
+สอนงาน,Training & People Development,th,exact,approved
+กฎหมายแรงงาน,Labour Law & Compliance,th,exact,approved
+กฏหมายแรงงาน,Labour Law & Compliance,th,exact,approved
+ข้อบังคับการทำงาน,Labour Law & Compliance,th,exact,approved
+labour law,Labour Law & Compliance,en,word_boundary,approved
+labor law,Labour Law & Compliance,en,word_boundary,approved
+work permit,Visa & Work Permit / BOI,en,word_boundary,approved
+\bboi\b,Visa & Work Permit / BOI,en,regex,approved
+แรงงานต่างด้าว,Visa & Work Permit / BOI,th,exact,approved
+รายงาน 90 วัน,Visa & Work Permit / BOI,th,exact,approved
+document control,Document Control & Administration,en,word_boundary,approved
+version control,Document Control & Administration,en,word_boundary,approved
+ควบคุมเอกสาร,Document Control & Administration,th,exact,approved
+จัดทำเอกสาร,Document Control & Administration,th,exact,approved
+งานธุรการ,Document Control & Administration,th,exact,approved
+จดบันทึกการประชุม,Document Control & Administration,th,exact,approved
+บริหารโครงการ,Project Management,th,exact,approved
+ควบคุมโครงการ,Project Management,th,exact,approved
+project management,Project Management,en,word_boundary,approved
+\bpmp\b,Project Management,en,regex,approved
+master schedule,Project Management,en,word_boundary,approved
+\biso\b,ISO / GMP / HACCP,en,regex,approved
+\bgmp\b,ISO / GMP / HACCP,en,regex,approved
+haccp,ISO / GMP / HACCP,en,word_boundary,approved
+halal,ISO / GMP / HACCP,en,word_boundary,approved
+ฮาลาล,ISO / GMP / HACCP,th,exact,approved
+\blean\b,Lean / Kaizen / 5S,en,regex,approved
+kaizen,Lean / Kaizen / 5S,en,word_boundary,approved
+ไคเซ็น,Lean / Kaizen / 5S,th,exact,approved
+six sigma,Lean / Kaizen / 5S,en,word_boundary,approved
+5ส,Lean / Kaizen / 5S,th,exact,approved
+\b5s\b,Lean / Kaizen / 5S,en,regex,approved
+\bqc\b,QC / QA Inspection,en,regex,approved
+\bqa\b,QC / QA Inspection,en,regex,approved
+qa/qc,QC / QA Inspection,en,word_boundary,approved
+ควบคุมคุณภาพ,QC / QA Inspection,th,exact,approved
+ประกันคุณภาพ,QC / QA Inspection,th,exact,approved
+ตรวจสอบคุณภาพ,QC / QA Inspection,th,exact,approved
+quality control,QC / QA Inspection,en,word_boundary,approved
+quality assurance,QC / QA Inspection,en,word_boundary,approved
+ควบคุมการผลิต,Production Operations,th,exact,approved
+กระบวนการผลิต,Production Operations,th,exact,approved
+เครื่องจักร,Production Operations,th,exact,approved
+สายการผลิต,Production Operations,th,exact,approved
+ความปลอดภัยในการทำงาน,Occupational Safety / HSE,th,exact,approved
+อาชีวอนามัย,Occupational Safety / HSE,th,exact,approved
+\bhse\b,Occupational Safety / HSE,en,regex,approved
+\behs\b,Occupational Safety / HSE,en,regex,approved
+\bcsr\b,CSR & Sustainability,en,regex,approved
+ชุมชนสัมพันธ์,CSR & Sustainability,th,exact,approved
+sustainability,CSR & Sustainability,en,word_boundary,approved
+ความยั่งยืน,CSR & Sustainability,th,exact,approved
+\bplc\b,PLC / Industrial Automation,en,regex,approved
+scada,PLC / Industrial Automation,en,word_boundary,approved
+automation,PLC / Industrial Automation,en,word_boundary,approved
+ระบบอัตโนมัติ,PLC / Industrial Automation,th,exact,approved
+(?<!รถ)ไฟฟ้า,Electrical Systems,th,regex,approved
+ช่างไฟฟ้า,Electrical Systems,th,exact,approved
+ระบบไฟฟ้า,Electrical Systems,th,exact,approved
+ไฟฟ้ากำลัง,Electrical Systems,th,exact,approved
+\belectrical\b,Electrical Systems,en,regex,approved
+ซ่อมบำรุง,Mechanical & Maintenance (PM/CM),th,exact,approved
+บำรุงรักษา,Mechanical & Maintenance (PM/CM),th,exact,approved
+preventive maintenance,Mechanical & Maintenance (PM/CM),en,word_boundary,approved
+เครื่องกล,Mechanical & Maintenance (PM/CM),th,exact,approved
+maintenance,Mechanical & Maintenance (PM/CM),en,word_boundary,approved
+\bhvac\b,HVAC & Refrigeration,en,regex,approved
+ระบบแอร์,HVAC & Refrigeration,th,exact,approved
+ระบบทำความเย็น,HVAC & Refrigeration,th,exact,approved
+เครื่องปรับอากาศ,HVAC & Refrigeration,th,exact,approved
+งานเชื่อม,Welding & Metalwork,th,exact,approved
+เชื่อมโลหะ,Welding & Metalwork,th,exact,approved
+ช่างเชื่อม,Welding & Metalwork,th,exact,approved
+\bweld(?:ing|er)?\b,Welding & Metalwork,en,regex,approved
+\bcnc\b,CNC / Machining,en,regex,approved
+งานกลึง,CNC / Machining,th,exact,approved
+มิลลิ่ง,CNC / Machining,th,exact,approved
+งานก่อสร้าง,Civil & Construction Supervision,th,exact,approved
+ควบคุมงานก่อสร้าง,Civil & Construction Supervision,th,exact,approved
+งานโยธา,Civil & Construction Supervision,th,exact,approved
+civil engineering,Civil & Construction Supervision,en,word_boundary,approved
+solar cell,Solar / Renewable Energy,en,word_boundary,approved
+โซลาร์เซลล์,Solar / Renewable Energy,th,exact,approved
+โซลาร์,Solar / Renewable Energy,th,exact,approved
+พลังงานแสงอาทิตย์,Solar / Renewable Energy,th,exact,approved
+forklift,Forklift Operation,en,word_boundary,approved
+โฟล์คลิฟท์,Forklift Operation,th,exact,approved
+โฟล์คลิฟ,Forklift Operation,th,exact,approved
+โฟคลิฟ,Forklift Operation,th,exact,approved
+โฟร์คลิฟท์,Forklift Operation,th,exact,approved
+รถยก(?!เว้น),Forklift Operation,th,regex,approved
+ทำอาหาร,Food & Beverage Preparation,th,exact,approved
+เครื่องดื่ม,Food & Beverage Preparation,th,exact,approved
+บาริสต้า,Food & Beverage Preparation,th,exact,approved
+barista,Food & Beverage Preparation,en,word_boundary,approved
+เบเกอรี่,Food & Beverage Preparation,th,exact,approved
+bakery,Food & Beverage Preparation,en,word_boundary,approved
+ครัวกลาง,Food & Beverage Preparation,th,exact,approved
+ต้อนรับลูกค้า,Hotel & Front Office Operations,th,exact,approved
+จองห้องพัก,Hotel & Front Office Operations,th,exact,approved
+receptionist,Hotel & Front Office Operations,en,word_boundary,approved
+reservation,Hotel & Front Office Operations,en,word_boundary,approved
+front office,Hotel & Front Office Operations,en,word_boundary,approved
+(?<!รักษา)พยาบาล,Nursing & Clinical Care,th,regex,approved
+การพยาบาล,Nursing & Clinical Care,th,exact,approved
+\bnursing\b,Nursing & Clinical Care,en,regex,approved
+\bnurse\b,Nursing & Clinical Care,en,regex,approved
+ศัลยกรรม,Medical Aesthetics & Clinic Care,th,exact,approved
+เสริมความงาม,Medical Aesthetics & Clinic Care,th,exact,approved
+สอนงานพนักงาน,Teaching & Coaching,th,exact,approved
+ถ่ายทอดความรู้,Teaching & Coaching,th,exact,approved
+ให้คำปรึกษา,Teaching & Coaching,th,exact,approved
+\bcoaching\b,Teaching & Coaching,en,regex,approved
+ส่งเสริมการปลูก,Agricultural Extension & Agronomy,th,exact,approved
+การเกษตร,Agricultural Extension & Agronomy,th,exact,approved
+ปศุสัตว์,Agricultural Extension & Agronomy,th,exact,approved
+agronomy,Agricultural Extension & Agronomy,en,word_boundary,approved
+การสื่อสาร,Communication,th,exact,approved
+สื่อสาร,Communication,th,exact,approved
+ประสานงาน,Communication,th,exact,approved
+communication,Communication,en,word_boundary,approved
+ทำงานเป็นทีม,Teamwork & Collaboration,th,exact,approved
+ร่วมงานกับผู้อื่น,Teamwork & Collaboration,th,exact,approved
+teamwork,Teamwork & Collaboration,en,word_boundary,approved
+team work,Teamwork & Collaboration,en,word_boundary,approved
+ภาวะผู้นำ,Leadership & Team Management,th,exact,approved
+บริหารทีม,Leadership & Team Management,th,exact,approved
+ผู้นำทีม,Leadership & Team Management,th,exact,approved
+leadership,Leadership & Team Management,en,word_boundary,approved
+แก้ปัญหา,Problem Solving & Analytical Thinking,th,exact,approved
+แก้ไขปัญหา,Problem Solving & Analytical Thinking,th,exact,approved
+วิเคราะห์ปัญหา,Problem Solving & Analytical Thinking,th,exact,approved
+problem solving,Problem Solving & Analytical Thinking,en,word_boundary,approved
+problem-solving,Problem Solving & Analytical Thinking,en,word_boundary,approved
+เจรจาต่อรอง,Negotiation & Persuasion,th,exact,approved
+ต่อรอง,Negotiation & Persuasion,th,exact,approved
+โน้มน้าว,Negotiation & Persuasion,th,exact,approved
+negotiation,Negotiation & Persuasion,en,word_boundary,approved
+ใจรักงานบริการ,Service Mind,th,exact,approved
+รักงานบริการ,Service Mind,th,exact,approved
+service mind,Service Mind,en,word_boundary,approved
+service mindset,Service Mind,en,word_boundary,approved
+บริหารเวลา,Time Management & Multitasking,th,exact,approved
+ตรงต่อเวลา,Time Management & Multitasking,th,exact,approved
+time management,Time Management & Multitasking,en,word_boundary,approved
+นำเสนองาน,Presentation Skills,th,exact,approved
+นำเสนอข้อมูล,Presentation Skills,th,exact,approved
+presentation,Presentation Skills,en,word_boundary,approved
+ทำงานภายใต้ความกดดัน,Adaptability & Stress Tolerance,th,exact,approved
+รับแรงกดดัน,Adaptability & Stress Tolerance,th,exact,approved
+ปรับตัว,Adaptability & Stress Tolerance,th,exact,approved
+ละเอียดรอบคอบ,Attention to Detail & Integrity,th,exact,approved
+ซื่อสัตย์,Attention to Detail & Integrity,th,exact,approved
+ความรับผิดชอบ,Attention to Detail & Integrity,th,exact,approved
+english,English,en,word_boundary,approved
+ภาษาอังกฤษ,English,th,exact,approved
+อังกฤษ,English,th,exact,approved
+chinese,Chinese (Mandarin),en,word_boundary,approved
+mandarin,Chinese (Mandarin),en,word_boundary,approved
+ภาษาจีน,Chinese (Mandarin),th,exact,approved
+中文,Chinese (Mandarin),zh,exact,approved
+中泰,Chinese (Mandarin),zh,exact,approved
+中英,Chinese (Mandarin),zh,exact,approved
+japanese,Japanese,en,word_boundary,approved
+ภาษาญี่ปุ่น,Japanese,th,exact,approved
+jlpt,Japanese,en,word_boundary,approved
+korean,Korean,en,word_boundary,approved
+ภาษาเกาหลี,Korean,th,exact,approved
+topik,Korean,en,word_boundary,approved
+แปลเอกสาร,Translation & Interpretation,th,exact,approved
+ล่าม,Translation & Interpretation,th,exact,approved
+translation,Translation & Interpretation,en,word_boundary,approved
+interpretation,Translation & Interpretation,en,word_boundary,approved
+翻译,Translation & Interpretation,zh,exact,approved
+口译,Translation & Interpretation,zh,exact,approved
+ใบขับขี่รถยนต์,Driving Licence (Car),th,exact,approved
+ใบอนุญาตขับขี่รถยนต์,Driving Licence (Car),th,exact,approved
+ใบอนุญาตขับขี่,Driving Licence (Car),th,exact,approved
+ขับรถยนต์ได้,Driving Licence (Car),th,exact,approved
+driving license,Driving Licence (Car),en,word_boundary,approved
+driving licence,Driving Licence (Car),en,word_boundary,approved
+ใบขับขี่รถจักรยานยนต์,Driving Licence (Motorcycle),th,exact,approved
+ใบขับขี่มอเตอร์ไซค์,Driving Licence (Motorcycle),th,exact,approved
+ขับรถจักรยานยนต์,Driving Licence (Motorcycle),th,exact,approved
+(?<![ก-ฮa-zA-Z0-9])(?:ท|บ)\.\s?[234](?![0-9]),Heavy Truck Licence (ท.2/บ.2),th,regex,approved
+ใบขับขี่ประเภท 2,Heavy Truck Licence (ท.2/บ.2),th,exact,approved
+ใบขับขี่รถบรรทุก,Heavy Truck Licence (ท.2/บ.2),th,exact,approved
+ขับรถบรรทุก,Heavy Truck Licence (ท.2/บ.2),th,exact,approved
+ใบ กว,Engineering Licence (กว.),th,exact,approved
+ก.ว.,Engineering Licence (กว.),th,exact,approved
+สามัญวิศวกร,Engineering Licence (กว.),th,exact,approved
+ภาคีวิศวกร,Engineering Licence (กว.),th,exact,approved
+จป.วิชาชีพ,Safety Officer Licence (จป.),th,exact,approved
+จป.เทคนิค,Safety Officer Licence (จป.),th,exact,approved
+จป.หัวหน้างาน,Safety Officer Licence (จป.),th,exact,approved
+ผู้ทำบัญชี,CPA / CPD Accounting Licence,th,exact,approved
+\bcpd\b,CPA / CPD Accounting Licence,en,regex,approved
+\bcpa\b,CPA / CPD Accounting Licence,en,regex,approved
+ใบประกอบวิชาชีพการพยาบาล,Nursing / Medical Licence,th,exact,approved
+ใบประกอบโรคศิลปะ,Nursing / Medical Licence,th,exact,approved
+หนังสือรับรองความรู้ความสามารถ,Electrical Technician Licence,th,exact,approved
+ใบขับขี่รถโฟล์คลิฟท์,Forklift Certificate,th,exact,approved
+ใบอนุญาตขับรถยก,Forklift Certificate,th,exact,approved
+toeic,TOEIC / IELTS Certificate,en,word_boundary,approved
+ielts,TOEIC / IELTS Certificate,en,word_boundary,approved
+toefl,TOEIC / IELTS Certificate,en,word_boundary,approved

@@ -1,0 +1,64 @@
+{
+  "app": {
+    "title": "Skill Demand Intelligence",
+    "subtitle": "Thai Labor Market Skill Demand & Salary Analytics",
+    "demoBadge": "Demo Mode (126 Real Sample Postings)",
+    "sampleBadge": "Posting Sample",
+    "provenancePrefix": "Source: JobThai",
+    "updatedLabel": "Updated",
+    "lowDataTitle": "Insufficient Data (n < 5)",
+    "lowDataDesc": "Aggregate values are suppressed when sample size is below 5 to protect privacy and statistical reliability.",
+    "emptyTitle": "No matching records",
+    "emptyDesc": "Try broadening your province, occupation cluster, or time range in the Global Context Bar.",
+    "tableView": "Table View",
+    "chartView": "Chart View",
+    "downloadCsv": "Download CSV",
+    "sourceLinkLabel": "View Original Posting"
+  },
+  "nav": {
+    "landing": "Home",
+    "market": "Market Explorer",
+    "salary": "Salary Estimator",
+    "mySkills": "My Skills",
+    "skillGap": "Skill Gap",
+    "curricula": "Curricula Alignment",
+    "mlLab": "ML Lab",
+    "adminPipeline": "Admin: Pipeline",
+    "adminQuality": "Admin: Data Quality",
+    "adminTaxonomy": "Admin: Taxonomy",
+    "adminSources": "Admin: Sources",
+    "settings": "Settings",
+    "privacy": "Privacy",
+    "about": "About & Limitations",
+    "login": "Sign In / Demo",
+    "logout": "Sign Out"
+  },
+  "filters": {
+    "province": "Province / Region",
+    "allCountry": "All Thailand",
+    "south14": "14 Southern Provinces",
+    "occupation": "Occupation Cluster",
+    "allOccupations": "All Occupations",
+    "period": "Time Period",
+    "allPeriods": "All Available",
+    "skillType": "Skill Type",
+    "allSkillTypes": "All Types",
+    "modeActive": "Active Postings",
+    "modeNew": "New Postings",
+    "openFilters": "Filters"
+  },
+  "chat": {
+    "title": "Page Data Assistant",
+    "placeholder": "Ask about numbers or charts visible on this page...",
+    "send": "Send",
+    "disclaimer": "AI responses use only data currently shown on this page and may contain inaccuracies. Verify against cited cards. Visible aggregate context is sent to Google (Gemini) when asked.",
+    "routeChanged": "Page changed — new context loaded",
+    "quotaExceeded": "Daily chat quota reached (5/day for visitors, 20/day for signed-in users).",
+    "errorReply": "Unable to answer right now. Please try again.",
+    "retry": "Retry",
+    "close": "Close chat panel"
+  },
+  "limitations": {
+    "short": "Note: Data comes from a stratified sample of JobThai postings (not a full census). Only aggregate statistics (n >= 5) and source links are displayed. Posted salaries reflect selection bias."
+  }
+}

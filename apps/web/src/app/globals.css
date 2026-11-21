@@ -1,0 +1,207 @@
+@import "tailwindcss";
+
+:root {
+  /* ===== Page background: mesh gradient อ่อน ===== */
+  --page-base: #F4F3FA;
+  --page-mesh:
+    radial-gradient(900px 600px at 8% 0%,   #E4DEFF 0%, transparent 60%),
+    radial-gradient(800px 560px at 95% 8%,  #FFE3D8 0%, transparent 62%),
+    radial-gradient(900px 700px at 70% 100%, #D8F0F5 0%, transparent 60%);
+
+  /* ===== Ink ===== */
+  --ink-primary:   #1B1A2E;   /* บนพื้นขาว ≈ 16:1 */
+  --ink-secondary: #4A4963;   /* ≈ 8:1 */
+  --ink-muted:     #6B6A82;   /* ≈ 5.1:1 บนขาว ใช้กับข้อความเล็กได้ */
+
+  /* ===== Surfaces ===== */
+  --surface-solid:  #FFFFFF;
+  --surface-chart:  rgb(255 255 255 / 0.94);  /* พื้นใต้กราฟ/ตาราง */
+  --surface-sunken: #F7F7FB;
+  --border-hairline: #E8E8F0;
+
+  /* ===== Glass ===== */
+  --glass-bg:        rgb(255 255 255 / 0.62);
+  --glass-bg-strong: rgb(255 255 255 / 0.78);   /* sidebar, modal, แชท */
+  --glass-border:    rgb(255 255 255 / 0.70);   /* ขอบใน 1px */
+  --glass-edge:      rgb(108 92 231 / 0.10);    /* ขอบนอกบางๆ ให้การ์ดไม่จมบนพื้นสว่าง */
+  --glass-highlight: linear-gradient(180deg, rgb(255 255 255 / 0.75), rgb(255 255 255 / 0) 38%);
+  --glass-blur:      18px;
+  --glass-saturate:  1.4;
+  --glass-shadow:    0 1px 0 rgb(255 255 255 / 0.6) inset, 0 8px 28px rgb(48 36 120 / 0.08);
+
+  /* ===== Identity (categorical) ===== */
+  --series-me:      #6C5CE7;
+  --series-market:  #E0623F;
+  --series-compare: #0E9AAE;
+  --series-context: #B4B3C6;
+  --tint-me:        #ECE9FC;
+  --tint-market:    #FBE4DC;
+
+  /* ===== Sequential (ม่วงเดียว) / Diverging ===== */
+  --seq-1: #F1EFFD; --seq-2: #D9D3FA; --seq-3: #B7ACF4; --seq-4: #9384EE;
+  --seq-5: #6C5CE7; --seq-6: #4B3DBF; --seq-7: #2F2680;
+  --div-neg: #E8590C; --div-mid: #E4E4EC; --div-pos: #1971C2;
+
+  /* ===== Status (ต้องมีไอคอน + ข้อความ) ===== */
+  --status-good: #138A4B; --status-warning: #8A5A00; --status-critical: #C92A2A;
+
+  /* ===== AI ===== */
+  --ai-gradient: linear-gradient(135deg, #6C5CE7 0%, #A77BE8 55%, #F0A58C 100%);
+  --on-ai: #FFFFFF;          /* ข้อความบน gradient ใช้ตัวหนา ≥ 16px และมี scrim ด้านล่าง */
+
+  /* ===== Shape / spacing ===== */
+  --radius-card: 20px; --radius-control: 12px; --radius-chip: 999px;
+  --space-card: 20px;  --gap-grid: 16px;
+  --focus-ring: 0 0 0 3px rgb(108 92 231 / 0.45);
+
+  /* ===== Motion ===== */
+  --ease-out: cubic-bezier(.2,.8,.2,1);
+  --dur-fast: 140ms; --dur-base: 240ms;
+}
+
+@theme inline {
+  --color-page: var(--page-base);
+  --color-ink: var(--ink-primary);
+  --color-ink-2: var(--ink-secondary);
+  --color-ink-3: var(--ink-muted);
+  --color-me: var(--series-me);
+  --color-market: var(--series-market);
+  --color-compare: var(--series-compare);
+  --color-context: var(--series-context);
+  --radius-card: 20px;
+  --radius-control: 12px;
+  --font-sans: var(--font-inter), var(--font-ibm-thai), "Inter", "IBM Plex Sans Thai", system-ui, sans-serif;
+}
+
+/* shadcn mapping */
+:root {
+  --background: var(--page-base);
+  --foreground: var(--ink-primary);
+  --card: var(--surface-solid);
+  --card-foreground: var(--ink-primary);
+  --primary: var(--series-me);
+  --primary-foreground: #fff;
+  --muted: var(--surface-sunken);
+  --muted-foreground: var(--ink-muted);
+  --border: var(--border-hairline);
+  --ring: var(--series-me);
+  --radius: 12px;
+}
+
+body {
+  background-color: var(--page-base);
+  background-image: var(--page-mesh);
+  background-attachment: fixed;
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Focus visibility on glass surfaces */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== Glass utility ===== */
+.glass {
+  position: relative;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+          backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border: 1px solid var(--glass-border);
+  outline: 1px solid var(--glass-edge);
+  outline-offset: -1px;
+  border-radius: var(--radius-card);
+  box-shadow: var(--glass-shadow);
+}
+.glass::before {               /* แสงสะท้อนบาง ๆ ที่ขอบบน */
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--glass-highlight);
+}
+.glass-strong {
+  background: var(--glass-bg-strong);
+}
+.surface-solid {
+  background: var(--surface-solid);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-card);
+  box-shadow: 0 4px 18px rgb(48 36 120 / 0.05);
+}
+.chart-surface {               /* ที่วางกราฟ/ตาราง: ทึบพอให้ contrast ไม่ผันผวน */
+  background: var(--surface-chart);
+  border-radius: calc(var(--radius-card) - 6px);
+  padding: 12px;
+  border: 1px solid rgb(232 232 240 / 0.7);
+}
+.ai-card {
+  position: relative;
+  background: var(--ai-gradient);
+  color: var(--on-ai);
+  border-radius: var(--radius-card);
+  box-shadow: 0 12px 32px rgb(108 92 231 / 0.24);
+  overflow: hidden;
+}
+.ai-card-scrim {
+  background: linear-gradient(180deg, rgb(27 26 46 / 0.14) 0%, rgb(27 26 46 / 0.36) 100%);
+}
+
+/* ===== Fallbacks ===== */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass, .glass-strong { background: #FFFFFF; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass, .glass-strong { background: #FFFFFF; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .glass::before { display: none; }
+  body { background-image: none; }
+}
+@media (prefers-contrast: more) {
+  .glass, .glass-strong { background: #FFFFFF; -webkit-backdrop-filter: none; backdrop-filter: none; border-color: #1B1A2E; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+/* User opt-out in Settings */
+html[data-glass="off"] .glass,
+html[data-glass="off"] .glass-strong {
+  background: #FFFFFF;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-color: var(--border-hairline);
+}
+html[data-glass="off"] .glass::before {
+  display: none;
+}
+html[data-glass="off"] body {
+  background-image: none;
+}
+/* อุปกรณ์อ่อน/มือถือ: ลดเบลอ และจำกัดจำนวนชั้นเบลอ */
+@media (max-width: 767px) {
+  :root { --glass-blur: 10px; }
+  .glass .glass { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+@media print {
+  body {
+    background: #FFFFFF !important;
+    background-image: none !important;
+  }
+  .glass, .glass-strong {
+    background: #FFFFFF !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+    border-color: #D8D8E6 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
