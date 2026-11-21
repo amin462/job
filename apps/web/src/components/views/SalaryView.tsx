@@ -562,7 +562,7 @@ export function SalaryView({
             icon={<TrendingUp className="h-5 w-5" />}
             provenance={{ source: estimate?.model_name || "Champion", n: publicSummary.n_with_salary }}
           >
-            {!estimate || estimate.uplifts.length === 0 ? (
+            {!estimate || !Array.isArray(estimate.uplifts) || estimate.uplifts.length === 0 ? (
               <LowDataState n={0} />
             ) : (
               <MeterList

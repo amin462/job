@@ -3,7 +3,10 @@ import { getCurrentSession, getDemoStore } from "@/lib/auth";
 import { checkProfileRoleUpdateAllowed } from "@/lib/compliance";
 import { getPublicDimSkills } from "@/lib/data";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  createSupabaseServerClient,
+  createSupabaseServiceClient,
+} from "@/lib/supabase/server";
 import { DEMO_SESSION_COOKIE } from "@/lib/supabase/middleware";
 import type { CurriculumItem, UserSession } from "@/types/marts";
 
@@ -367,8 +370,36 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // 5. Account / Demo Data Reset
+  // 5. Account / Demo Data Reset (PDPA delete own data)
   if (action === "delete_account") {
+    if (!session.is_demo && isSupabaseConfigured()) {
+      const supabase = await createSupabaseServerClient();
+      if (supabase) {
+        await supabase.from("app_user_skill").delete().eq("user_id", session.user_id);
+        await supabase.from("app_curriculum").delete().eq("owner_id", session.user_id);
+        await supabase.from("app_profile").delete().eq("user_id", session.user_id);
+
+        const demoEmails = new Set(
+          [
+            process.env.DEMO_STUDENT_DATA_EMAIL,
+            process.env.DEMO_STUDENT_ACC_EMAIL,
+            process.env.DEMO_INSTITUTION_EMAIL,
+            process.env.DEMO_ADMIN_EMAIL,
+          ]
+            .map((e) => (e || "").trim().toLowerCase())
+            .filter(Boolean)
+        );
+        const sessionEmail = (session.email || "").trim().toLowerCase();
+        if (!sessionEmail || !demoEmails.has(sessionEmail)) {
+          const service = await createSupabaseServiceClient();
+          if (service) {
+            await service.auth.admin.deleteUser(session.user_id);
+          }
+        }
+        await supabase.auth.signOut();
+      }
+    }
+
     delete store.skillsByUser[session.user_id];
     delete store.curriculaByUser[session.user_id];
     delete store.profiles[session.user_id];

@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
 import { POST as chatPost } from "@/app/api/chat/route";
@@ -303,6 +305,17 @@ describe("Floating Gemini Chat Groundedness & Rate Limit (T7.1–T7.5)", () => {
     expect(routes.length).toBe(10);
 
     let totalQuestions = 0;
+    const reportRows: Array<{
+      index: number;
+      route: string;
+      page: string;
+      question: string;
+      mode: string;
+      answerPreview: string;
+      grounded: boolean;
+      ungroundedNumbers: string[];
+    }> = [];
+
     for (const item of routes) {
       expect(item.questions.length).toBe(3);
       for (let idx = 0; idx < item.questions.length; idx++) {
@@ -329,9 +342,47 @@ describe("Floating Gemini Chat Groundedness & Rate Limit (T7.1–T7.5)", () => {
           check.grounded,
           `Route ${item.route} Q="${q}" leaked ungrounded numbers [${check.ungroundedNumbers.join(", ")}] in answer: ${body.answer}`
         ).toBe(true);
+
+        reportRows.push({
+          index: totalQuestions,
+          route: item.route,
+          page: item.context.page,
+          question: q,
+          mode: body.mode || "fallback",
+          answerPreview: body.answer.replace(/\s+/g, " ").slice(0, 90),
+          grounded: check.grounded,
+          ungroundedNumbers: check.ungroundedNumbers,
+        });
       }
     }
     expect(totalQuestions).toBe(30);
+
+    if (process.env.WRITE_CHAT_EVAL_REPORT === "1") {
+      const reportPath = path.resolve(
+        process.cwd(),
+        "..",
+        "..",
+        "docs",
+        "chat-grounded-report.md"
+      );
+      const passed = reportRows.filter((r) => r.grounded).length;
+      const lines = [
+        "# รายงานผลการทดสอบแชทบอทแบบ Grounded 30 คำถาม across 10 เส้นทาง (T7.4)",
+        "",
+        `- **วิธีทดสอบ:** ยิงคำขอจริงเข้า \`POST /api/chat\` ผ่าน \`apps/web/src/__tests__/chat-grounded.test.ts\` (ตรวจทุกตัวเลขในคำตอบเทียบกับ \`pageContext\` ด้วย \`verifyAnswerNumbersInContext\`)`,
+        `- **ผลสรุป:** Grounded **${passed}/${totalQuestions}** ข้อ (**${((passed / totalQuestions) * 100).toFixed(1)}%**) · Ungrounded number leaks = **${reportRows.filter((r) => !r.grounded).length}** ข้อ`,
+        `- **โหมดทดสอบ:** Grounded deterministic fallback (เมื่อไม่มี \`GEMINI_API_KEY\` หรือ quota หมด) พร้อมตัวกรองเลขข้ามหน้า (cross-page/Text-to-SQL rejection)`,
+        "",
+        "| # | เส้นทาง (Route) | Page Context | คำถามทดสอบ | โหมด | ตัวอย่างคำตอบ | Grounded |",
+        "|---:|---|---|---|---|---|---|",
+        ...reportRows.map(
+          (r) =>
+            `| ${r.index} | \`${r.route}\` | \`${r.page}\` | ${r.question.replace(/\|/g, "\\|")} | \`${r.mode}\` | ${r.answerPreview.replace(/\|/g, "\\|")} | ${r.grounded ? "PASS" : "FAIL"} |`
+        ),
+        "",
+      ];
+      fs.writeFileSync(reportPath, lines.join("\n"), "utf-8");
+    }
   });
 
   it("enforces visitor 5/day IP rate limit returning HTTP 429 on 6th request", async () => {

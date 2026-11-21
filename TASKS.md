@@ -62,22 +62,22 @@
 
 ## Phase 5 — Frontend (สัปดาห์ 5–12; สไตล์ตาม DESIGN_SYSTEM.md)
 ### 5A โครงและระบบ
-- [~] **T5.1 (M)** scaffold Next.js + Tailwind v4 + shadcn + `globals.css` (tokens + glass + fallback) · DoD: หน้า style guide แสดงการ์ดแก้ว/ทึบ
-- [~] **T5.2 (M)** ธีม ECharts `skillbi` + `ChartSurface` + ปุ่ม "ดูเป็นตาราง" + `ProvenanceBadge` · DoD: กราฟตัวอย่าง 3 แบบผ่าน contrast
-- [~] **T5.3 (M)** `AppShell` (sidebar/bottom tab, Context Bar), i18n TH/EN, middleware ตาม role
+- [x] **T5.1 (M)** scaffold Next.js + Tailwind v4 + shadcn + `globals.css` (tokens + glass + fallback) · DoD: หน้า style guide แสดงการ์ดแก้ว/ทึบ
+- [x] **T5.2 (M)** ธีม ECharts `skillbi` + `ChartSurface` + ปุ่ม "ดูเป็นตาราง" + `ProvenanceBadge` · DoD: กราฟตัวอย่าง 3 แบบผ่าน contrast
+- [x] **T5.3 (M)** `AppShell` (sidebar/bottom tab, Context Bar), i18n TH/EN, middleware ตาม role
 - [x] **T5.4 (M)** Supabase client ฝั่ง server + helper อ่าน `mart.*` + สถานะ loading/empty/error มาตรฐาน
 ### 5B หน้า (ดู FRONTEND_SPEC §3)
-- [~] **T5.5 (M)** Landing `/` (KPI จาก `mart.public_summary` ⟨v4.1⟩ + calendar + top skills) · รอ T3.5
-- [~] **T5.6 (M)** Market Explorer `/market` (ranked bars, Sankey, small multiples, volume + slider)
-- [~] **T5.7 (M)** Skill detail `/skills/[slug]` (trend + co-occurrence + เงินเดือนเทียบ)
-- [~] **T5.8 (M)** Occupation detail `/occupations/[slug]` + `SourceLink`
-- [~] **T5.9 (M)** My Skills `/me/skills` + `SkillChipPicker` (ค้นด้วย alias ไทย/อังกฤษ) · รอ T6.2
-- [~] **T5.10 (M)** Skill Gap `/me/gap` (radar, coverage, ทักษะที่ขาด, ตำแหน่งที่ตรง)
-- [~] **T5.11 (M)** Curriculum list + detail + Alignment report (coverage meter, gaps, over-coverage) + CSV import/export · รอ T6.2
-- [~] **T5.12 (M)** Salary page `/salary` + `/api/salary/estimate` (proxy → ml-api, timeout 8 วินาที, ปลุก `/health` ตอนเปิดหน้า) + fallback `mart.salary_prediction`/median พร้อมป้าย ⟨v4.2⟩ · รอ T4.5
-- [~] **T5.13 (M)** ML Lab `/ml-lab` · รอ T4.6
-- [~] **T5.14 (M)** Admin pipeline / quality / taxonomy queue / sources · รอ T3.6
-- [~] **T5.15 (M)** Settings / Privacy / About + ลบข้อมูลตนเอง
+- [x] **T5.5 (M)** Landing `/` (KPI จาก `mart.public_summary` ⟨v4.1⟩ + calendar + top skills) · รอ T3.5
+- [x] **T5.6 (M)** Market Explorer `/market` (ranked bars, Sankey, small multiples, volume + slider)
+- [x] **T5.7 (M)** Skill detail `/skills/[slug]` (trend + co-occurrence + เงินเดือนเทียบ)
+- [x] **T5.8 (M)** Occupation detail `/occupations/[slug]` + `SourceLink`
+- [x] **T5.9 (M)** My Skills `/me/skills` + `SkillChipPicker` (ค้นด้วย alias ไทย/อังกฤษ) · รอ T6.2
+- [x] **T5.10 (M)** Skill Gap `/me/gap` (radar, coverage, ทักษะที่ขาด, ตำแหน่งที่ตรง)
+- [x] **T5.11 (M)** Curriculum list + detail + Alignment report (coverage meter, gaps, over-coverage) + CSV import/export · รอ T6.2
+- [x] **T5.12 (M)** Salary page `/salary` + `/api/salary/estimate` (proxy → ml-api, timeout 8 วินาที, ปลุก `/health` ตอนเปิดหน้า) + fallback `mart.salary_prediction`/median พร้อมป้าย ⟨v4.2⟩ · รอ T4.5
+- [x] **T5.13 (M)** ML Lab `/ml-lab` · รอ T4.6
+- [x] **T5.14 (M)** Admin pipeline / quality / taxonomy queue / sources · รอ T3.6
+- [x] **T5.15 (M)** Settings / Privacy / About + ลบข้อมูลตนเอง
 - [ ] **T5.16 (S)** Curriculum PDF export, เทียบ 2 หลักสูตร
 - [ ] **T5.17 (M)** ปรับมือถือ (375px) ทุกหน้า + glass off mode + ตรวจ contrast อัตโนมัติ 3 จุดของ mesh
 
@@ -88,9 +88,9 @@
 - [x] **T6.4 (M)** ชุดทดสอบ RLS (user A/B, visitor, admin, **ผู้ใช้พยายามแก้ role เป็น admin** ⟨v4.1⟩, anon อ่าน `pipeline_status` ไม่ได้) อัตโนมัติ · DoD: ผลทุกกรณีตรงตามคาด
 
 ## Phase 7 — แชท Gemini (สัปดาห์ 11–12)
-- [~] **T7.1 (M)** `usePageContext()` + ตัวตัดขนาด pageContext (≤ ~6,000 token) · DoD: ทุกหน้า Must ลงทะเบียน
+- [x] **T7.1 (M)** `usePageContext()` + ตัวตัดขนาด pageContext (≤ ~6,000 token) · DoD: ทุกหน้า Must ลงทะเบียน
 - [~] **T7.2 (M)** `/api/chat` (system prompt, rate limit, log ลง `app_chat_log`) · DoD: ปฏิเสธเมื่อไม่มีข้อมูลในหน้า
-- [~] **T7.3 (M)** `ChatFab`/`ChatPanel` + คำถามแนะนำต่อหน้า + disclaimer
+- [x] **T7.3 (M)** `ChatFab`/`ChatPanel` + คำถามแนะนำต่อหน้า + disclaimer
 - [~] **T7.4 (M)** ชุดคำถาม 30 ข้อ + สคริปต์ตรวจ grounded (ตัวเลขในคำตอบต้องมีใน pageContext) · DoD: รายงานผล
 - [ ] **T7.5 (S)** คำตอบสำรองสำหรับคำถามเดโมเมื่อ quota หมด
 

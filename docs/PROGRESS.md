@@ -8,11 +8,11 @@
 ## 1. สถานะภาพรวมปัจจุบัน (21 พ.ย. 2569)
 
 - **เวอร์ชันแผน:** `PLAN.md` v4.2 (D1–D19)
-- **git:** commit แรก `753a33a` บน `master` (ยังไม่มี remote) — data/, spike/raw/, spike/out/, design/, .env* ไม่อยู่ใน git
-- **TASKS.md:** `[x]` 30 ข้อ · `[~]` 34 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลังบันทึกผล ML benchmark และ `mart.salary_prediction` ลง Supabase Postgres จริง: `T4.2`, `T4.6`)
-- **Supabase (T0.2):** โปรเจกต์ `smaaunonziebjvfyfuje` (Tokyo) · คีย์อยู่ใน `.env` และ `apps/web/.env.local` (ไม่อยู่ใน git) · Python ต่อผ่าน **Session pooler** ได้แล้ว (host ตรง `db.*.supabase.co` มีแต่ IPv6 เครื่องนี้ต่อไม่ได้) · **ลง migrations `001`–`005` แล้ว** (Postgres 17.12, schema `staging`/`dw`/`mart`/`ml`/`public`, `pg_trgm` v1.6, RLS ครบ 6 ตาราง `app_*`, seed `dim_location` 79 / `dim_date` 1,095)
+- **git:** branch `main` (ยังไม่มี remote — รอผู้ใช้สั่งก่อน push) · `data/`, `spike/raw/`, `spike/out/`, `design/`, `.env*` ไม่อยู่ใน git
+- **TASKS.md:** `[x]` 46 ข้อ · `[~]` 18 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลังตรวจรับ Phase 5, `T7.1`/`T7.3`, PDPA delete account, รายงาน `T7.4`, และเตรียม gold template 200 ข้อ `T2.7`)
+- **Supabase (T0.2):** โปรเจกต์ `smaaunonziebjvfyfuje` (Tokyo) · คีย์อยู่ใน `.env` และ `apps/web/.env.local` (ไม่อยู่ใน git) · Python ต่อผ่าน **Session pooler** ได้แล้ว (host ตรง `db.*.supabase.co` มีแต่ IPv6 เครื่องนี้ต่อไม่ได้) · **ลง migrations `001`–`005` แล้ว** (Postgres 17.12, schema `staging`/`dw`/`mart`/`ml`/`public`, `pg_trgm` v1.6, RLS ครบ 6 ตาราง `app_*`, seed `dim_location` 151 / `dim_date` 1,095, `ml.*` + `mart.salary_prediction` 748 แถว, บัญชีเดโม 4 persona)
 - **GitHub:** `https://github.com/amin462/job` (public, ยังว่าง) — ยังไม่ได้ตั้ง remote/push รอผู้ใช้สั่ง
-- **เทสต์ล่าสุด:** `pytest` scraper+import+skills+clean 90 passed (รวมเทสต์ N_h ใหม่ 4 ข้อ) · `test_ml.py` ผ่านเมื่อเช้า (ไม่ได้แก้ไฟล์ ML) · `vitest` 26/26 · `tsc --noEmit` ผ่าน · `npm run build` ผ่าน (26 route)
+- **เทสต์ล่าสุด:** `pytest pipeline/tests -q` ได้ `136 passed` · clean-clone (`git archive HEAD` + fixtures โดยไม่มี `spike/`/`data/`) ได้ `105 passed, 4 skipped` · `apps/web`: `npx vitest run` ได้ `7 files, 34 passed` · `npx tsc --noEmit` ผ่าน · `npm run build` ผ่าน (26 route) · `check_db` ผ่าน
 - **การเก็บข้อมูลจริง (T1.8) กำลังรัน:** ผู้ใช้ยืนยัน T0.3 แล้ว (21 พ.ย.) — harvester ทั้งสองตัวรันแบบหน้าต่าง cmd ย่อไว้ ด้วย delay ≥ 5 วินาที
   - JobThai (`data/jobthai.sqlite`): 16,130 job id · ดึงรายละเอียดแล้ว 291 · error 2 · ที่เหลือรอดึง (ประมาณ 27 ชม. หลังสแกนรายการรอบใหม่ ~6 ชม.)
   - JobBKK (`data/jobbkk.sqlite`): 7,542 job id (ยังสแกนกรุงเทพฯ ไม่ครบ) · ยังไม่ได้ดึงรายละเอียด
@@ -24,13 +24,15 @@
 
 > **กติกาสำหรับ AI Agent:** ห้ามหยุดรอรายการด้านล่าง ให้ทำส่วนโค้ด/ร่างให้ครบแล้วเดินงานถัดไป
 
-- [~] **👤 T0.2 / T3.8:** สร้างโปรเจกต์ + ใส่คีย์ใน `.env` แล้ว (21 พ.ย.) · Python ต่อได้ · **ผลทดสอบ REST (21 พ.ย.):** REST ใช้ publishable key อ่าน `mart.public_summary` ได้ `HTTP 406 PGRST106` เพราะ `Exposed schemas` ยังมีแค่ `public, graphql_public` · **ผู้ใช้ต้องทำเพิ่ม:** Dashboard → Project Settings → Data API → Exposed schemas เพิ่ม `mart` (ห้ามเปิด `staging`, `dw`, `ml`) แล้วรัน `.venv\Scripts\python.exe -X utf8 -m pipeline.check_permissions` ซ้ำเพื่อปิด `T3.8` และหา Gemini API key ใส่ `GEMINI_API_KEY` ใน `.env` + `apps/web/.env.local`
+- [~] **👤 T0.2 / T3.8 / T7.2 / T7.4:** สร้างโปรเจกต์ + ใส่คีย์ Supabase ใน `.env` / `apps/web/.env.local` แล้ว · **ผู้ใช้ต้องทำเพิ่ม:**
+  1. Supabase Dashboard → Project Settings → Data API → `Exposed schemas` เพิ่ม `mart` (ห้ามเปิด `staging`, `dw`, `ml`) แล้วรัน `.venv\Scripts\python.exe -X utf8 -m pipeline.check_permissions` เพื่อปิด `T3.8`
+  2. ใส่ `GEMINI_API_KEY` จริงใน `.env` และ `apps/web/.env.local` แล้วรัน `WRITE_CHAT_EVAL_REPORT=1 npx vitest run src/__tests__/chat-grounded.test.ts` ใน `apps/web` เพื่อทดสอบ Gemini สดและปิด `T7.2` / `T7.4`
 - [x] **👤 T0.3:** ผู้ใช้ยืนยันหนังสืออนุญาตแล้ว (21 พ.ย. 2569)
 - [ ] **👤 T0.4:** ตอบคำถามใน `PLAN.md §11` (จำนวนผู้จัดทำ, วันสอบจริง, เกณฑ์จำนวนกลุ่มตัวอย่างแบบสอบถาม)
-- [ ] **👤 T0.6:** ถาม IT มหาวิทยาลัยเรื่อง VM/HTTPS สำหรับ `services/ml-api` (ระหว่างรอใช้ Render Free)
-- [~] **👤 T1.8:** กำลังรัน harvester (ดูหัวข้อ 1) · เมื่อมีประกาศ ok เพิ่ม ให้รัน `py -X utf8 -m pipeline.scraper.import_sqlite` เพื่อนำเข้า staging
-- [ ] **👤 T2.7:** คนตรวจมือ 200 ประกาศตาม `eval/labeling-guideline.md` ลงใน `eval/skills_gold.csv` (ห้ามใช้ LLM)
-- [ ] **👤 T8.3:** เก็บแบบสอบถาม Likert 5 ระดับ (ร่างข้อคำถามอยู่ใน `docs/questionnaire.md`)
+- [ ] **👤 T0.6 / T4.0:** ถาม IT มหาวิทยาลัยเรื่อง VM/HTTPS หรือ deploy `services/ml-api` บน Render Free ตาม [docs/DEPLOY.md](DEPLOY.md) แล้วตั้ง `ML_API_URL` / `ML_API_KEY` บน Vercel พร้อมวัดเวลา cold start บันทึกใน `docs/DEPLOY.md`
+- [~] **👤 T1.8 / T1.5 / T8.2:** กำลังรัน harvester (ดูหัวข้อ 1) · เมื่อมีประกาศ `ok` ครบ ≥ 500 และ ≥ 5,000 ให้รัน `import_sqlite` → `run_pipeline --from-staging` → `export_model --merge-seed` เพื่อปิด `T1.5`, `T1.8`, และอัปเดตรายงาน `T8.2`
+- [~] **👤 T2.2 / T2.7:** เตรียม `eval/skills_gold_template.csv` **ครบ 200 แถวแบบ stratified (50 overlap)** จาก 291 ประกาศจริงแล้ว · ให้คนตรวจมือลง `eval/skills_gold.csv` (ห้ามใช้ LLM) และสุ่มตรวจ `T2.2` วุฒิ/ประสบการณ์ 50 ประกาศ (≥ 90% ถูก) ก่อนรัน `eval/evaluate_skills.py`
+- [~] **👤 T8.3:** เก็บแบบสอบถาม Likert 5 ระดับ (ร่างข้อคำถามอยู่ใน `docs/questionnaire.md`)
 
 ---
 
@@ -46,16 +48,21 @@
 
 ## 4. ข้อสังเกต/ความเสี่ยงที่พบ
 
-- **N_h ของชั้นสุ่ม (T1.7) — แก้แล้ว 21 พ.ย.:** หน้ารายการ JobThai ฝัง JSON `{"data":{"total":N,"data":[...]}}` ไว้ ซึ่งบอกทั้ง N_h ของตัวกรองนั้น และ `province.id`/`jobType.id` ของแต่ละประกาศ harvester เก็บค่านี้แล้ว (ไม่ยิง request เพิ่ม) ตรวจกับข้อมูลจริงแล้ว: นนทบุรี × งานธุรการ N_h = 158 และ 20 ประกาศที่ได้มีชั้นตรงกันทั้งหมด · ค่าจะครบทุกชั้นหลัง harvester สแกนหน้ารายการรอบนี้เสร็จ (~6 ชม.) แล้วรัน `py -X utf8 -m pipeline.scraper.import_sqlite`
-  - ข้อจำกัดที่เหลือ: แต่ละชั้นได้แค่ ≤ 20 ประกาศล่าสุด (หน้าแรก) ชั้นใหญ่ เช่น กรุงเทพฯ จึงถูกสุ่มน้อยกว่าสัดส่วน (น้ำหนักสูง ความแปรปรวนสูง) — ถ้าต้องการจัดสรรตามสัดส่วนจริงต้องไล่หน้า 2..k ของชั้นใหญ่ตาม `quota.py`
-  - หน้ารายการที่ total = 0 ยังมีลิงก์ประกาศอื่น ~5 ลิงก์ (ประกาศแนะนำ) — id พวกนี้ไม่มีชั้นของตัวเองจนกว่าจะไปเจอในหน้าของชั้นจริง ห้ามนับเข้าชั้นของหน้าที่เจอ
-- **clone แล้วรันเทสต์ไม่ครบ (T0.1):** เทสต์บางข้อใช้ `spike/raw/` และ `spike/out/` ซึ่งไม่อยู่ใน git (มีข้อความประกาศ) — ต้องคัดลอกไฟล์เองหรือทำ fixture ที่ตัดข้อความออก
-- **JobBKK** เป็นงานระดับ Could (T1.9 / T8.6) แต่ harvester รันอยู่แล้ว
-- งาน `[~]` ฝั่ง DB (migrations 001–005, grants, RLS, marts) **ยังไม่เคยรันกับ Postgres/Supabase จริง** — ต้องทดสอบ `npx supabase db reset` หลัง T0.2
+- **การแบ่งชั้นสุ่ม `N_h` (งาน `T1.7` / `T3.4`):** แผนงานช่วงต้นเคยพบปัญหาหน้าแรกเก็บได้ ≤ 20 ประกาศต่อชั้น — **แก้แล้ว** โดยให้ `load_dw.py` ผูก `sample_stratum` จาก `staging.listing_seen` + `jobthai_strata.csv` และ fallback ระดับจังหวัดจาก `jobthai_province_totals.csv` ได้ครบแล้ว
+- **ความสอดคล้องของ Docker `services/ml-api`:** ใน working tree มีงานค้างจากรอบ 16:00 ที่ยังไม่ได้ commit (`pipeline/etl/enrich.py`, `pipeline/ml/features.py` ที่ import `enrich`, `pipeline/etl/run_pipeline.py`, `pipeline/tests/test_enrich.py`, `docs/data-dictionary.md`, `scraper/jobthai_harvester.py`) — หาก commit ชุด `enrich` ดังกล่าวในภายหลัง ต้องเพิ่ม `COPY pipeline/etl/__init__.py` และ `COPY pipeline/etl/enrich.py` ใน `services/ml-api/Dockerfile` และค่อย export `models/` ใหม่ให้ตรงกัน
+- **JobBKK** เป็นงานระดับ Could (`T1.9` / `T8.6`) แต่ harvester รันอยู่แล้ว (เฉพาะ `listing_seen`, ยังไม่ได้ดึงรายละเอียด)
 
 ---
 
 ## 5. บันทึกงานที่ทำเสร็จแล้ว (Changelog)
+
+### 2026-11-21 (ค่ำ) — งานที่ 9 (ส่วนที่ 2): ตรวจรับ UI/UX Phase 5, Grounded Chat, PDPA Delete Account และเตรียม Gold Template 200 ข้อ (T5.1–T5.3, T5.5–T5.15, T7.1, T7.3, T7.4, T2.7)
+- แก้บั๊ก PDPA ลบบัญชีจริงใน [apps/web/src/app/api/user-state/route.ts](../apps/web/src/app/api/user-state/route.ts): เมื่อผู้ใช้ Supabase (`!is_demo`) กดลบข้อมูลตนเอง (`delete_account`) ให้ลบแถวใน `app_user_skill`, `app_curriculum` (cascade `app_curriculum_skill`), `app_profile`, ลบ Auth user ผ่าน service client (ยกเว้นบัญชีเดโม 4 persona เพื่อไม่ให้ปุ่มเดโมพัง), และเรียก `supabase.auth.signOut()`
+- เพิ่มความทนทานใน [apps/web/src/components/views/SalaryView.tsx](../apps/web/src/components/views/SalaryView.tsx) ป้องกัน runtime error เมื่อ API ตอบกลับไม่มี array `uplifts`
+- สร้างชุดทดสอบ rendered UI ครบทุกหน้า Phase 5 + `AppShell` + `ChatWidget` ใน [apps/web/src/__tests__/views-render.test.tsx](../apps/web/src/__tests__/views-render.test.tsx) (`6 tests`) และเพิ่มตัวสร้างรายงานใน [apps/web/src/__tests__/chat-grounded.test.ts](../apps/web/src/__tests__/chat-grounded.test.ts) → ออกรายงานจริง 30 คำถาม across 10 เส้นทางใน [docs/chat-grounded-report.md](chat-grounded-report.md) (`30/30 PASS`, `0` ungrounded number leaks ในโหมด fallback)
+- รัน [eval/prepare_gold_set.py](../eval/prepare_gold_set.py) กับ `data/processed/clean_postings.csv` (291 ประกาศจริง) → อัปเดต [eval/skills_gold_template.csv](../eval/skills_gold_template.csv) จาก 126 แถวเป็น **200 แถวแบบ stratified (50 overlap, ไม่มี `description`/`qualifications`)** พร้อมให้คนตรวจมือ (`👤 T2.7`)
+- ทดสอบ: `apps/web` `npx vitest run` ได้ `7 files, 34 passed` · `npx tsc --noEmit` ผ่าน · `npm run build` ผ่าน 26 route · `pytest pipeline/tests -q` ได้ `136 passed` · `check_db` ผ่าน
+- ปิด **`T5.1`–`T5.3`**, **`T5.5`–`T5.15`**, **`T7.1`**, **`T7.3`** เป็น `[x]` (คง **`T7.2`**, **`T7.4`** เป็น `[~]` รอ `GEMINI_API_KEY` เพื่อตรวจกับ Gemini สด)
 
 ### 2026-11-21 (ค่ำ) — งานที่ 9 (ส่วนที่ 1): บันทึกผล ML Benchmark + `mart.salary_prediction` ลง Supabase Postgres จริง (T4.2, T4.6)
 - ปรับปรุง [pipeline/ml/export_model.py](../pipeline/ml/export_model.py):
