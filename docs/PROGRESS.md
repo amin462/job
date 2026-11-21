@@ -57,6 +57,13 @@
 
 ## 5. บันทึกงานที่ทำเสร็จแล้ว (Changelog)
 
+### 2026-11-21 (เย็น) — งานที่ 4: แบ่งชั้นจังหวัด × ประเภทงานและน้ำหนักสุ่ม (T1.7, T3.4)
+- ปรับ `pipeline/etl/load_dw.py` (`compute_weights_and_seen_dates`, เพิ่ม `load_strata_population` และ `load_province_population_maps`):
+  - ใช้ `sample_stratum` จาก `staging.listing_seen` (เช่น `p=<province>|c=<jobtype>`) หรือ fallback `p=<code>|c=all` เมื่อไม่มีประวัติ `listing_seen`
+  - คำนวณ `sample_weight = N_h / n_h` โดยชั้นระดับ `p=XX|c=YY` ใช้ `N_h` จาก `data/processed/jobthai_strata.csv` และชั้นที่ยังไม่มี `|c=` (เช่น `p=XX`) ใช้ `N_h` ระดับจังหวัดจาก `jobthai_province_totals.csv` (หรือไฟล์ spike สำรอง); ถ้าชั้น `p=XX|c=YY` ยังไม่ถูกสแกน total ให้ fallback `1.0`
+- เพิ่มเทสต์ `pipeline/tests/test_load_dw.py` ตรวจ `sample_stratum`, `first_seen`/`last_seen`, fallback ระดับจังหวัด, `Σw == N_h` ต่อชั้น, และ DQ Sampling check
+- รัน `pytest` (`test_load_dw`, `test_import_sqlite`, `test_scraper`, `test_skills`, `test_clean`): `91 passed` · คง `T3.4` เป็น `[~]` เพื่อพิสูจน์รันซ้ำใน Postgres จริงในงานที่ 5
+
 ### 2026-11-21 (เย็น) — งานที่ 3: นำเข้าข้อมูลจริงเข้า Postgres staging (T1.5)
 - ปรับ `pipeline/scraper/load_staging.py` (ใช้ Postgres `unnest(...)` แบบ 1 roundtrip/batch แทนการยิงทีละแถว ทำให้ import 25k+ rows เสร็จใน ~1–2 นาที พร้อมตรวจรูปแบบวันที่ก่อนลง) และให้ `pipeline/scraper/import_sqlite.py` โหลด `.env` อัตโนมัติเมื่อไม่ระบุ `--sqlite-path`
 - รันเทสต์ `pytest pipeline/tests/test_import_sqlite.py pipeline/tests/test_scraper.py`: `36 passed`

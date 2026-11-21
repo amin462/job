@@ -17,29 +17,99 @@ from pipeline.etl.map_taxonomy import OccupationMapper
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SPIKE_PROVINCE_TOTALS = REPO_ROOT / "spike" / "raw" / "jobthai" / "by_province" / "province_totals.csv"
-# Fresh N_h per province from the JobThai harvester listing totals
+# Fresh N_h per province / per province x jobtype cell from the JobThai harvester listing totals
 # (written by `py -X utf8 -m pipeline.scraper.import_sqlite`); falls back to the spike file.
 HARVEST_PROVINCE_TOTALS = REPO_ROOT / "data" / "processed" / "jobthai_province_totals.csv"
+HARVEST_STRATA_CSV = REPO_ROOT / "data" / "processed" / "jobthai_strata.csv"
 DEFAULT_PROVINCE_TOTALS = (
     HARVEST_PROVINCE_TOTALS if HARVEST_PROVINCE_TOTALS.exists() else SPIKE_PROVINCE_TOTALS
 )
 
 
-def load_province_population(province_totals_csv: Path | str = DEFAULT_PROVINCE_TOTALS) -> dict[str, int]:
-    """Load reference stratum population N_h keyed by canonical province_th."""
-    pop: dict[str, int] = {}
-    path = Path(province_totals_csv)
+def _resolve_province_totals_csv(province_totals_csv: Path | str | None) -> Path:
+    if province_totals_csv is not None:
+        return Path(province_totals_csv)
+    if HARVEST_PROVINCE_TOTALS.exists():
+        return HARVEST_PROVINCE_TOTALS
+    return SPIKE_PROVINCE_TOTALS
+
+
+def load_province_population_maps(
+    province_totals_csv: Path | str | None = None,
+) -> tuple[dict[str, int], dict[str, int]]:
+    """Load province population N_h keyed by (province_th, province_code)."""
+    by_prov: dict[str, int] = {}
+    by_code: dict[str, int] = {}
+    path = _resolve_province_totals_csv(province_totals_csv)
     if not path.exists():
-        return pop
-    with open(path, encoding="utf-8") as f:
+        return by_prov, by_code
+    with open(path, encoding="utf-8-sig") as f:
         for row in csv.DictReader(f):
             prov = normalize_province(row.get("province"))["province_th"]
+            code = str(row.get("code") or "").strip()
+            if code.isdigit():
+                code = code.zfill(2)
             try:
                 total = int(float(row.get("total") or 0))
             except ValueError:
                 total = 0
-            pop[prov] = pop.get(prov, 0) + total
+            by_prov[prov] = by_prov.get(prov, 0) + total
+            if code:
+                by_code[code] = by_code.get(code, 0) + total
+    return by_prov, by_code
+
+
+def load_province_population(province_totals_csv: Path | str = DEFAULT_PROVINCE_TOTALS) -> dict[str, int]:
+    """Load reference stratum population N_h keyed by canonical province_th."""
+    by_prov, _ = load_province_population_maps(province_totals_csv)
+    return by_prov
+
+
+def load_strata_population(strata_csv: Path | str | None = HARVEST_STRATA_CSV) -> dict[str, int]:
+    """Load cell population N_h keyed by stratum string (`p=<prov>|c=<jobtype>`)."""
+    pop: dict[str, int] = {}
+    if strata_csv is None:
+        return pop
+    path = Path(strata_csv)
+    if not path.exists():
+        return pop
+    with open(path, encoding="utf-8-sig") as f:
+        for row in csv.DictReader(f):
+            st = str(row.get("stratum") or "").strip()
+            if not st:
+                continue
+            try:
+                n_h = int(float(row.get("N_h") or 0))
+            except ValueError:
+                n_h = 0
+            pop[st] = n_h
     return pop
+
+
+def _unpack_seen_entry(entry: Any) -> tuple[str | None, str | None, str | None]:
+    """Support (first, last), (first, last, stratum), or dict entry in listing_seen_history."""
+    if isinstance(entry, dict):
+        return (
+            entry.get("first_seen"),
+            entry.get("last_seen"),
+            entry.get("stratum"),
+        )
+    if isinstance(entry, (tuple, list)):
+        first_s = entry[0] if len(entry) >= 1 else None
+        last_s = entry[1] if len(entry) >= 2 else None
+        stratum = entry[2] if len(entry) >= 3 else None
+        return first_s, last_s, stratum
+    return None, None, None
+
+
+def _extract_province_code_from_stratum(stratum: str) -> str | None:
+    for part in stratum.split("|"):
+        if part.startswith("p="):
+            code = part[2:].strip()
+            if code.isdigit():
+                return code.zfill(2)
+            return code or None
+    return None
 
 
 def date_to_key(date_str: str | None, fallback: str | None = None) -> int | None:
@@ -56,26 +126,61 @@ def date_to_key(date_str: str | None, fallback: str | None = None) -> int | None
 
 def compute_weights_and_seen_dates(
     postings: list[dict[str, Any]],
-    province_totals_csv: Path | str = DEFAULT_PROVINCE_TOTALS,
-    listing_seen_history: dict[tuple[str, str], tuple[str, str]] | None = None,
+    province_totals_csv: Path | str | None = None,
+    listing_seen_history: dict[tuple[str, str], Any] | None = None,
     default_seen_date: str | None = None,
+    strata_csv: Path | str | None = HARVEST_STRATA_CSV,
 ) -> dict[str, float]:
     """Assign sample_stratum, sample_weight (N_h / n_h), and first/last_seen date keys.
 
+    Stratum resolution order per posting:
+    1. `stratum` from `staging.listing_seen` (via `listing_seen_history` or `p["listing_stratum"]`).
+    2. Fallback `p=<province_code>|c=all` when no listing_seen record exists.
+
+    Population N_h resolution:
+    - Cell stratum (`|c=` present and not `|c=all`, non-JobBKK): from `jobthai_strata.csv`.
+    - Province-only stratum (no `|c=`, or `|c=all`): from `jobthai_province_totals.csv`
+      (or spike `province_totals.csv` fallback).
+
     Returns `{stratum: N_h}` reference map for DQ sampling validation.
     """
-    pop_by_prov = load_province_population(province_totals_csv)
+    pop_by_prov, pop_by_code = load_province_population_maps(province_totals_csv)
+    pop_by_stratum = load_strata_population(strata_csv)
     stratum_counts: dict[str, int] = {}
     stratum_pop: dict[str, float] = {}
 
     for p in postings:
+        source = str(p.get("source") or "jobthai")
+        job_id = str(p.get("source_job_id") or "")
+        key = (source, job_id)
+        seen_entry = listing_seen_history.get(key) if listing_seen_history else None
+        first_seen, last_seen, seen_stratum = _unpack_seen_entry(seen_entry)
+
+        raw_stratum = str(seen_stratum or p.get("listing_stratum") or p.get("sample_stratum") or "").strip()
         p_code = str(p.get("province_code") or "00")
         p_th = str(p.get("province_th") or "ไม่ระบุ")
-        stratum = f"p={p_code}|c=all"
+        if raw_stratum and raw_stratum != "unknown":
+            stratum = raw_stratum
+        else:
+            stratum = f"p={p_code}|c=all"
+
         p["sample_stratum"] = stratum
         stratum_counts[stratum] = stratum_counts.get(stratum, 0) + 1
+
         if stratum not in stratum_pop:
-            stratum_pop[stratum] = float(pop_by_prov.get(p_th, 0))
+            if stratum.startswith("jobbkk|"):
+                n_pop = 0.0
+            elif "|c=" in stratum and not stratum.endswith("|c=all"):
+                n_pop = float(pop_by_stratum.get(stratum, 0))
+            else:
+                st_code = _extract_province_code_from_stratum(stratum)
+                if st_code and st_code in pop_by_code:
+                    n_pop = float(pop_by_code[st_code])
+                else:
+                    n_pop = float(pop_by_prov.get(p_th, 0))
+            stratum_pop[stratum] = n_pop
+
+        p["_resolved_seen_pair"] = (first_seen, last_seen)
 
     for p in postings:
         stratum = str(p["sample_stratum"])
@@ -83,20 +188,20 @@ def compute_weights_and_seen_dates(
         n_pop = stratum_pop.get(stratum, 0.0)
         p["sample_weight"] = round(n_pop / n_h, 6) if n_pop > 0 and n_h > 0 else 1.0
 
-        key = (str(p.get("source") or "jobthai"), str(p.get("source_job_id") or ""))
-        if listing_seen_history and key in listing_seen_history:
-            first_s, last_s = listing_seen_history[key]
-        else:
+        first_s, last_s = p.pop("_resolved_seen_pair", (None, None))
+        if not first_s:
             fallback_d = str(p.get("date_posted") or default_seen_date or dt.date.today().isoformat())[:10]
             first_s = fallback_d
             last_s = str(default_seen_date or fallback_d)[:10]
-            if last_s < first_s:
-                last_s = first_s
+        elif not last_s:
+            last_s = first_s
+        if last_s < first_s:
+            last_s = first_s
 
-        p["first_seen_date"] = first_s
-        p["last_seen_date"] = last_s
-        p["first_seen_date_key"] = date_to_key(first_s)
-        p["last_seen_date_key"] = date_to_key(last_s)
+        p["first_seen_date"] = str(first_s)[:10]
+        p["last_seen_date"] = str(last_s)[:10]
+        p["first_seen_date_key"] = date_to_key(p["first_seen_date"])
+        p["last_seen_date_key"] = date_to_key(p["last_seen_date"])
 
     return {st: n_pop for st, n_pop in stratum_pop.items() if n_pop > 0}
 
