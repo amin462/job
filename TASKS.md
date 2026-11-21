@@ -30,7 +30,7 @@
 ## Phase 2 — ETL และ Taxonomy (สัปดาห์ 2–5)
 - [x] **T2.1 (M)** `clean.py`: เงินเดือนตามกฎ ARCH §5.1 (ช่วง → กลางช่วง, "ขึ้นไป" → mid = min + ธง, วัน × 26, ชม. × 8 × 26, "ตามตกลง" → NULL, นอก 5,000–500,000 → NULL) ⟨v4.1⟩, จังหวัด/อำเภอ, ชื่อบริษัท normalize · DoD: test ครอบ 30 รูปแบบเงินเดือนจริง
 - [~] **T2.2 (M)** วุฒิ/ประสบการณ์ regex → band · DoD: ตรวจมือ 50 ประกาศ ≥ 90% ถูก
-- [~] **T2.3 (M)** taxonomy v0: `skills.csv` 100 ทักษะ + `aliases.csv` ไทย/อังกฤษ (เริ่มจาก dictionary ใน `analyze_sample.py`) · DoD: โหลดเข้า `dim_skill`/`skill_alias`
+- [x] **T2.3 (M)** taxonomy v0: `skills.csv` 100 ทักษะ + `aliases.csv` ไทย/อังกฤษ (เริ่มจาก dictionary ใน `analyze_sample.py`) · DoD: โหลดเข้า `dim_skill`/`skill_alias`
 - [x] **T2.4 (M)** `extract_skills.py`: normalize + PyThaiNLP `newmm` + จับ alias (word boundary EN, token TH) · DoD: ประกาศมีทักษะ ≥ 1 ≥ 90%
 - [x] **T2.5 (M)** `occupations.csv` + `map_taxonomy.py` (title → occupation cluster, 15–25 cluster) · DoD: ครอบคลุม ≥ 85% ของประกาศ
 - [x] **T2.6 (M)** คิว alias pending: นับคำถี่ที่ไม่ map → ไฟล์/ตาราง `app_alias_suggestion`/ staging พร้อมทักษะที่เสนอด้วย `pg_trgm similarity` (ไม่ใช้ AI) ⟨v4.1⟩ · DoD: รายงาน top 100 คำ
@@ -42,10 +42,10 @@
 - [x] **T3.1 (M)** Migration 002: dims (ARCH §3.3) + seed `dim_date`, `dim_location` (77 จังหวัด + ภาค + is_south14) · รอ T1.1
 - [x] **T3.2 (M)** Migration 003: `fact_job_posting`, `fact_posting_skill` + index · DoD: constraint ผ่าน
 - [x] **T3.3 (M)** `validate.py`: DQ checks 8 ด้าน (รวม Sampling ⟨v4.1⟩) → `dq_result` + เกณฑ์ผ่าน · DoD: รันแล้วได้ตารางผล
-- [~] **T3.4 (M)** `load_dw.py` idempotent (upsert) + คำนวณ `first_seen`/`last_seen` จาก `listing_seen` และใส่ `sample_stratum`/`sample_weight` ⟨v4.1⟩ · DoD: รันซ้ำแล้วจำนวนแถวไม่เปลี่ยน · รอ T2.x, T3.2
-- [~] **T3.5 (M)** Migration 004: marts `skill_demand_weekly` (ถ่วงน้ำหนัก, active/ใหม่) ⟨v4.1⟩, `occupation_skill_profile`, `salary_stats`, `posting_volume_daily`, `top_links`, `public_summary` ⟨v4.1⟩ (ซ่อน n < 5) · DoD: ตรวจตัวเลขตรงกับ query ตรงจาก dw
-- [~] **T3.6 (M)** marts `skill_cooccurrence`, `curriculum_coverage_ref`, `pipeline_status`, `dq_summary` (2 ตัวหลัง admin เท่านั้น ไม่ grant anon)
-- [~] **T3.7 (M)** `build_marts.py` + สคริปต์ปลายทางรวม `run_pipeline.py` (extract→…→marts) · DoD: คำสั่งเดียวรันได้ทั้งสาย
+- [x] **T3.4 (M)** `load_dw.py` idempotent (upsert) + คำนวณ `first_seen`/`last_seen` จาก `listing_seen` และใส่ `sample_stratum`/`sample_weight` ⟨v4.1⟩ · DoD: รันซ้ำแล้วจำนวนแถวไม่เปลี่ยน · รอ T2.x, T3.2
+- [x] **T3.5 (M)** Migration 004: marts `skill_demand_weekly` (ถ่วงน้ำหนัก, active/ใหม่) ⟨v4.1⟩, `occupation_skill_profile`, `salary_stats`, `posting_volume_daily`, `top_links`, `public_summary` ⟨v4.1⟩ (ซ่อน n < 5) · DoD: ตรวจตัวเลขตรงกับ query ตรงจาก dw
+- [x] **T3.6 (M)** marts `skill_cooccurrence`, `curriculum_coverage_ref`, `pipeline_status`, `dq_summary` (2 ตัวหลัง admin เท่านั้น ไม่ grant anon)
+- [x] **T3.7 (M)** `build_marts.py` + สคริปต์ปลายทางรวม `run_pipeline.py` (extract→…→marts) · DoD: คำสั่งเดียวรันได้ทั้งสาย
 - [~] **T3.8 (M)** สิทธิ์: ปิด `staging/dw/ml` จาก API, grant select เฉพาะ `mart.*` ที่จำเป็น · DoD: ทดสอบด้วย anon key แล้วอ่าน dw ไม่ได้
 - [ ] **T3.9 (S)** `fact_labor_monthly` + การ์ดบริบทภาครัฐ
 

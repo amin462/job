@@ -154,7 +154,13 @@ _HTML_TAG_RX = re.compile(r"<[^>]+>")
 _PHONE_CORE = r"(?:02(?:[-.\s]?\d){7}|0[3-9]\d(?:[-.\s]?\d){6,7}|\+66(?:[-.\s]?\d){8,9})"
 _PHONE_SCRUB_RX = re.compile(rf"(?<!\d){_PHONE_CORE}(?!\d)")
 _EMAIL_SCRUB_RX = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
-_LINE_SCRUB_RX = re.compile(r"(?i)(?:line\s*(?:id|official)?|ไอดีไลน์|แอดไลน์)\s*[:：]?\s*@?[A-Za-z0-9._-]{2,}")
+_LINE_SCRUB_RX = re.compile(
+    r"(?i)(?:"
+    r"(?:(?<![A-Za-z])id\s*line|(?<![A-Za-z])line\s*id|ไอดี\s*ไลน์|แอด\s*ไลน์|ทัก\s*ไลน์)\s*[:：=@\-]?\s*@?[A-Za-z0-9._-]{2,}"
+    r"|(?<![A-Za-z])line\s*(?:official|oa)?\s*[:：=@]\s*@?[A-Za-z0-9._-]{2,}"
+    r"|(?<![A-Za-z])line\s+@[A-Za-z0-9._-]{2,}"
+    r")"
+)
 _HR_CONTACT_PHRASE_RX = re.compile(
     rf"(?i)(?:สนใจ)?(?:ติดต่อ(?:สอบถาม)?|สอบถาม(?:เพิ่มเติม)?|โทร\.?|tel\.?|mobile|มือถือ|สายด่วน)\s*[:：]?\s*(?:(?:คุณ|k\.?|mr\.?|ms\.?|mrs\.?)\s*[^\s,()/]+(?:\s*(?:โทร\.?|tel\.?)?\s*[:：]?\s*{_PHONE_CORE})?|{_PHONE_CORE}(?:\s*(?:คุณ|k\.?|mr\.?|ms\.?|mrs\.?)\s*[^\s,()/]+)?)"
 )

@@ -9,7 +9,7 @@
 
 - **เวอร์ชันแผน:** `PLAN.md` v4.2 (D1–D19)
 - **git:** commit แรก `753a33a` บน `master` (ยังไม่มี remote) — data/, spike/raw/, spike/out/, design/, .env* ไม่อยู่ใน git
-- **TASKS.md:** `[x]` 19 ข้อ · `[~]` 45 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลังทดสอบสิทธิ์/RLS งานที่ 2)
+- **TASKS.md:** `[x]` 24 ข้อ · `[~]` 40 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลังรัน ETL จาก Postgres staging → dw → marts)
 - **Supabase (T0.2):** โปรเจกต์ `smaaunonziebjvfyfuje` (Tokyo) · คีย์อยู่ใน `.env` และ `apps/web/.env.local` (ไม่อยู่ใน git) · Python ต่อผ่าน **Session pooler** ได้แล้ว (host ตรง `db.*.supabase.co` มีแต่ IPv6 เครื่องนี้ต่อไม่ได้) · **ลง migrations `001`–`005` แล้ว** (Postgres 17.12, schema `staging`/`dw`/`mart`/`ml`/`public`, `pg_trgm` v1.6, RLS ครบ 6 ตาราง `app_*`, seed `dim_location` 79 / `dim_date` 1,095)
 - **GitHub:** `https://github.com/amin462/job` (public, ยังว่าง) — ยังไม่ได้ตั้ง remote/push รอผู้ใช้สั่ง
 - **เทสต์ล่าสุด:** `pytest` scraper+import+skills+clean 90 passed (รวมเทสต์ N_h ใหม่ 4 ข้อ) · `test_ml.py` ผ่านเมื่อเช้า (ไม่ได้แก้ไฟล์ ML) · `vitest` 26/26 · `tsc --noEmit` ผ่าน · `npm run build` ผ่าน (26 route)
@@ -56,6 +56,15 @@
 ---
 
 ## 5. บันทึกงานที่ทำเสร็จแล้ว (Changelog)
+
+### 2026-11-21 (เย็น) — งานที่ 5: รันทั้งสายจาก staging ใน Postgres → DW → Marts (T2.3, T3.4, T3.5, T3.6, T3.7)
+- เพิ่ม `load_raw_from_postgres` และ `--from-staging` ใน `pipeline/etl/run_pipeline.py` (อ่าน `staging.job_posting_raw` + `staging.listing_seen` จาก Postgres) และปรับ `upsert_dw_to_postgres` ใน `pipeline/etl/load_dw.py` ให้ upsert แบบ set-based `unnest(...)` และรีใช้ `scrape_run` + แทนที่ `dq_result` ของรอบเดิมอย่าง idempotent
+- แก้ bug false positive ใน `_LINE_SCRUB_RX` (`pipeline/etl/clean.py`) ที่จับคำลงท้ายด้วย `line` (เช่น `airline call`) และเพิ่ม regression test ใน `pipeline/tests/test_clean.py`
+- รัน `.venv\Scripts\python.exe -X utf8 -m pipeline.etl.run_pipeline --from-staging` 2 รอบติดกับข้อมูลจริง `291` ประกาศ:
+  - ผลรัน: `skill_cov=98.6% (287/291)` · `occ_cov=99.3% (289/291)` · `with_salary=102 (35.1%)` · `Compliance PASS (PII leaks=0)` · `Sampling PASS (291/291, mismatches=0)` · `Validity: canonical_province_and_date` รายงานตามจริง `289/291` (2 ประกาศ WFH/ไม่มี `jobLocation`)
+  - **Idempotency check:** จำนวนแถวทุกตาราง (`fact_job_posting=291`, `fact_posting_skill=1,647`, `dim_skill=128`, `skill_alias=568`, `dim_location=151`, `dim_company=149`, `dim_occupation=284`, `dq_result=10`, `scrape_run=7`, `app_alias_suggestion=101`) ไม่เปลี่ยนเลยหลังรันซ้ำ (`Diffs={}`)
+  - **Mart vs DW check (T3.5):** ตรวจ `mart.public_summary`, `mart.occupation_skill_profile`, `mart.salary_stats`, และการซ่อน `n < 5` บนทุก view ใน `mart` (`skill_demand_weekly=714`, `skill_cooccurrence=460`, `occupation_skill_profile=448`, `salary_stats=205`, `posting_volume_daily=23`, `curriculum_coverage_ref=386`, `top_links=155`, `pipeline_status=7`, `dq_summary=10`) ตรงกับ query ตรงจาก `dw.*` ทุกค่า
+- อัปเดต `docs/dq-report.md` (และ `data/processed/clean_postings.csv`, `seed_marts.json` ที่ไม่อยู่ใน git) · รัน `pytest` (`test_load_dw`, `test_import_sqlite`, `test_scraper`, `test_skills`, `test_clean`): `95 passed` · ปิด `T2.3`, `T3.4`, `T3.5`, `T3.6`, `T3.7` เป็น `[x]`
 
 ### 2026-11-21 (เย็น) — งานที่ 4: แบ่งชั้นจังหวัด × ประเภทงานและน้ำหนักสุ่ม (T1.7, T3.4)
 - ปรับ `pipeline/etl/load_dw.py` (`compute_weights_and_seen_dates`, เพิ่ม `load_strata_population` และ `load_province_population_maps`):

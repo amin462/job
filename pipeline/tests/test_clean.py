@@ -247,8 +247,12 @@ def test_scrub_hr_pii_removes_inline_contacts_and_provincial_phones():
     t3 = scrub_hr_pii("ออฟฟิศโทร 02-123-4567 หรือ +66 81 234 5678")
     assert not contains_hr_pii(t3)
 
-    # Normal business verbs must NOT be stripped
+    # Normal business verbs and English words ending in -line must NOT be stripped/flagged
     t4 = scrub_hr_pii("เจ้าหน้าที่ประสานงานและติดต่อลูกค้า เงินเดือน 15,000 บาท")
     assert "ติดต่อลูกค้า" in t4
     assert not contains_hr_pii(t4)
+
+    t5 = "บริการลูกค้าทางโทรศัพท์ premium airline call center & online marketing"
+    assert scrub_hr_pii(t5) == t5
+    assert not contains_hr_pii(t5)
 

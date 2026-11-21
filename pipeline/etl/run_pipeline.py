@@ -34,6 +34,7 @@ from pipeline.etl.clean import (
 from pipeline.etl.extract_skills import SkillExtractor
 from pipeline.etl.load_dw import (
     DEFAULT_PROVINCE_TOTALS,
+    HARVEST_STRATA_CSV,
     compute_weights_and_seen_dates,
     upsert_dw_to_postgres,
 )
@@ -235,11 +236,127 @@ def parse_raw_directories(raw_dirs: list[Path]) -> tuple[list[dict[str, Any]], i
     return list(deduped.values()), n_files, n_failed
 
 
+def load_raw_from_postgres(
+    database_url: str,
+    sources: list[str] | None = None,
+) -> tuple[list[dict[str, Any]], dict[tuple[str, str], tuple[str, str, str]], int, int]:
+    """Load deduplicated postings and listing_seen stratum/date history from Postgres staging."""
+    import psycopg
+
+    raw_records: list[dict[str, Any]] = []
+    listing_seen_history: dict[tuple[str, str], tuple[str, str, str]] = {}
+
+    with psycopg.connect(database_url) as conn:
+        with conn.cursor() as cur:
+            if sources:
+                cur.execute(
+                    """
+                    SELECT DISTINCT ON (source, source_job_id)
+                      source, source_job_id, source_url, title, description, qualifications,
+                      salary_text, salary_min, salary_max, province, district,
+                      job_category, industry, employment_type,
+                      date_posted, valid_through, company_name, payload, content_hash
+                    FROM staging.job_posting_raw
+                    WHERE source = ANY(%s)
+                    ORDER BY source, source_job_id, scraped_at DESC, raw_id DESC
+                    """,
+                    (sources,),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT DISTINCT ON (source, source_job_id)
+                      source, source_job_id, source_url, title, description, qualifications,
+                      salary_text, salary_min, salary_max, province, district,
+                      job_category, industry, employment_type,
+                      date_posted, valid_through, company_name, payload, content_hash
+                    FROM staging.job_posting_raw
+                    ORDER BY source, source_job_id, scraped_at DESC, raw_id DESC
+                    """
+                )
+
+            for row in cur.fetchall():
+                (
+                    source,
+                    source_job_id,
+                    source_url,
+                    title,
+                    description,
+                    qualifications,
+                    salary_text,
+                    salary_min,
+                    salary_max,
+                    province,
+                    district,
+                    job_category,
+                    industry,
+                    employment_type,
+                    date_posted,
+                    valid_through,
+                    company_name,
+                    payload,
+                    content_hash,
+                ) = row
+                item = payload if isinstance(payload, dict) else {}
+                base_sal = item.get("baseSalary") or {}
+                sal_val = base_sal.get("value") if isinstance(base_sal, dict) else {}
+                if not isinstance(sal_val, dict):
+                    sal_val = {}
+                edu_struct = item.get("educationRequirements")
+                edu_cred = edu_struct.get("credentialCategory") if isinstance(edu_struct, dict) else None
+                exp_struct = item.get("experienceRequirements")
+                exp_months = exp_struct.get("monthsOfExperience") if isinstance(exp_struct, dict) else None
+
+                raw_records.append(
+                    {
+                        "source": str(source),
+                        "source_job_id": str(source_job_id),
+                        "source_url": str(source_url),
+                        "title": clean_html_text(title, scrub_pii=True),
+                        "description": clean_html_text(description, scrub_pii=True),
+                        "qualifications": clean_html_text(qualifications, scrub_pii=True),
+                        "company_raw": scrub_hr_pii(company_name),
+                        "province_raw": province,
+                        "district_raw": district,
+                        "occupational_category": normalize_thai_text(job_category or item.get("occupationalCategory")),
+                        "industry": normalize_thai_text(industry or item.get("industry")),
+                        "employment_type": str(employment_type or "FULL_TIME").strip() or "FULL_TIME",
+                        "date_posted": date_posted.isoformat() if hasattr(date_posted, "isoformat") else (str(date_posted)[:10] if date_posted else None),
+                        "valid_through": valid_through.isoformat() if hasattr(valid_through, "isoformat") else (str(valid_through)[:10] if valid_through else None),
+                        "salary_text": salary_text,
+                        "salary_min_raw": float(salary_min) if salary_min is not None else sal_val.get("minValue"),
+                        "salary_max_raw": float(salary_max) if salary_max is not None else sal_val.get("maxValue"),
+                        "salary_value_raw": sal_val.get("value"),
+                        "salary_unit_raw": sal_val.get("unitText"),
+                        "edu_structured": edu_cred,
+                        "exp_months_structured": exp_months,
+                        "content_hash": str(content_hash),
+                    }
+                )
+
+            cur.execute(
+                """
+                SELECT source, source_job_id,
+                       MIN(seen_date)::text AS first_seen,
+                       MAX(seen_date)::text AS last_seen,
+                       COALESCE(MAX(stratum) FILTER (WHERE stratum LIKE '%%|c=%%'), MAX(stratum)) AS stratum
+                FROM staging.listing_seen
+                GROUP BY source, source_job_id
+                """
+            )
+            for src, sjid, first_s, last_s, stratum in cur.fetchall():
+                listing_seen_history[(str(src), str(sjid))] = (str(first_s), str(last_s), str(stratum or ""))
+
+    return raw_records, listing_seen_history, len(raw_records), 0
+
+
 def process_postings(
     raw_records: list[dict[str, Any]],
     extractor: SkillExtractor,
     mapper: OccupationMapper,
-    province_totals_csv: Path | str = DEFAULT_PROVINCE_TOTALS,
+    province_totals_csv: Path | str | None = DEFAULT_PROVINCE_TOTALS,
+    listing_seen_history: dict[tuple[str, str], Any] | None = None,
+    strata_csv: Path | str | None = HARVEST_STRATA_CSV,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, float]]:
     """Clean, extract skills, map occupations, and compute stratified weights."""
     cleaned_rows: list[dict[str, Any]] = []
@@ -320,7 +437,9 @@ def process_postings(
     stratum_pop = compute_weights_and_seen_dates(
         cleaned_rows,
         province_totals_csv=province_totals_csv,
+        listing_seen_history=listing_seen_history,
         default_seen_date=default_seen,
+        strata_csv=strata_csv,
     )
     pending_aliases = extractor.discover_pending_aliases(corpus_texts, top_n=100, min_freq=2, min_similarity=0.4)
     return cleaned_rows, pending_aliases, stratum_pop
@@ -345,6 +464,7 @@ def write_dq_report(
     n_files: int,
     n_failed: int,
     marts: dict[str, Any],
+    source_label: str = "JobThai HTML Snapshot",
 ) -> Path:
     """Generate docs/dq-report.md summarizing pipeline metrics and 8-dimension DQ results."""
     n = len(postings)
@@ -362,7 +482,7 @@ def write_dq_report(
     lines: list[str] = [
         "# รายงานคุณภาพข้อมูล (Data Quality Report — T3.3 / T8.2)",
         "",
-        f"> **แหล่งข้อมูล:** JobThai HTML Snapshot · **ไฟล์ที่อ่าน:** {n_files} ไฟล์ (ล้มเหลว {n_failed}) · **ประกาศหลังหักซ้ำ (Unique Postings):** {n} ประกาศ",
+        f"> **แหล่งข้อมูล:** {source_label} · **รายการที่อ่าน:** {n_files} (ล้มเหลว {n_failed}) · **ประกาศหลังหักซ้ำ (Unique Postings):** {n} ประกาศ",
         "",
         "## 1. สรุปภาพรวม (Summary Metrics)",
         "",
@@ -448,17 +568,39 @@ def write_dq_report(
 def run_pipeline(
     raw_dirs: list[Path],
     out_dir: Path,
-    province_totals_csv: Path = DEFAULT_PROVINCE_TOTALS,
+    province_totals_csv: Path | None = None,
     dq_report_path: Path = REPO_ROOT / "docs" / "dq-report.md",
     database_url: str | None = None,
+    *,
+    from_staging: bool = False,
+    sources: list[str] | None = None,
+    strata_csv: Path | None = HARVEST_STRATA_CSV,
 ) -> dict[str, Any]:
-    """Run full offline ETL + optional Postgres upsert."""
+    """Run full offline or Postgres-staging ETL + optional Postgres upsert."""
     extractor = SkillExtractor()
     mapper = OccupationMapper()
 
-    raw_records, n_files, n_failed = parse_raw_directories(raw_dirs)
+    listing_seen_history: dict[tuple[str, str], tuple[str, str, str]] | None = None
+    if from_staging:
+        if not database_url:
+            raise ValueError("database_url is required when from_staging=True")
+        raw_records, listing_seen_history, n_files, n_failed = load_raw_from_postgres(
+            database_url, sources=sources
+        )
+        source_label = "PostgreSQL Staging (staging.job_posting_raw + listing_seen)"
+        run_scope = "etl_pipeline:postgres_staging"
+    else:
+        raw_records, n_files, n_failed = parse_raw_directories(raw_dirs)
+        source_label = "JobThai HTML Snapshot"
+        run_scope = "etl_pipeline"
+
     postings, pending_aliases, stratum_pop = process_postings(
-        raw_records, extractor, mapper, province_totals_csv=province_totals_csv
+        raw_records,
+        extractor,
+        mapper,
+        province_totals_csv=province_totals_csv,
+        listing_seen_history=listing_seen_history,
+        strata_csv=strata_csv,
     )
 
     dq_results = run_dq_checks(
@@ -470,7 +612,16 @@ def run_pipeline(
     clean_csv = write_clean_postings_csv(postings, out_dir / "clean_postings.csv")
     marts = build_all_marts(postings, dq_results, pending_aliases, extractor, mapper)
     seed_json = write_seed_marts(marts, out_dir / "seed_marts.json")
-    report_path = write_dq_report(dq_report_path, postings, dq_results, pending_aliases, n_files, n_failed, marts)
+    report_path = write_dq_report(
+        dq_report_path,
+        postings,
+        dq_results,
+        pending_aliases,
+        n_files,
+        n_failed,
+        marts,
+        source_label=source_label,
+    )
 
     db_counts = None
     if database_url:
@@ -483,11 +634,12 @@ def run_pipeline(
             mapper=mapper,
             scrape_run_meta={
                 "source": "jobthai",
-                "scope": "etl_pipeline",
+                "scope": run_scope,
                 "status": "done",
                 "n_discovered": n_files,
                 "n_fetched": len(postings),
                 "n_failed": n_failed,
+                "reuse_run": True,
             },
         )
 
@@ -517,21 +669,36 @@ def main() -> None:
     parser.add_argument("--out-dir", default="data/processed", help="Output directory for processed artifacts.")
     parser.add_argument(
         "--province-totals",
-        default=str(DEFAULT_PROVINCE_TOTALS),
-        help="Reference province_totals.csv for stratified weights.",
+        default=None,
+        help="Reference province_totals.csv for stratified weights (defaults to jobthai_province_totals.csv or spike file).",
+    )
+    parser.add_argument(
+        "--strata-csv",
+        default=str(HARVEST_STRATA_CSV),
+        help="Reference jobthai_strata.csv for province x jobtype weights.",
     )
     parser.add_argument("--dq-report", default="docs/dq-report.md", help="Output path for Markdown DQ report.")
+    parser.add_argument("--from-staging", action="store_true", help="Read raw postings and listing_seen from Postgres staging.")
     parser.add_argument("--load-db", action="store_true", help="Load into Postgres using DATABASE_URL env var.")
     parser.add_argument("--database-url", default=None, help="Explicit Postgres connection string.")
     args = parser.parse_args()
 
-    db_url = args.database_url or (os.getenv("DATABASE_URL") if args.load_db else None)
+    if (args.load_db or args.from_staging) and not args.database_url and not os.getenv("DATABASE_URL"):
+        from dotenv import load_dotenv
+
+        env_file = REPO_ROOT / ".env"
+        if env_file.exists():
+            load_dotenv(dotenv_path=env_file, override=False)
+
+    db_url = args.database_url or (os.getenv("DATABASE_URL") if (args.load_db or args.from_staging) else None)
     res = run_pipeline(
         raw_dirs=[Path(d) for d in args.raw_dirs],
         out_dir=Path(args.out_dir),
-        province_totals_csv=Path(args.province_totals),
+        province_totals_csv=Path(args.province_totals) if args.province_totals else None,
         dq_report_path=Path(args.dq_report),
         database_url=db_url,
+        from_staging=args.from_staging,
+        strata_csv=Path(args.strata_csv) if args.strata_csv else None,
     )
     ps = res["marts"]["public_summary"]
     occ_cov = 100.0 * sum(1 for p in res["postings"] if p["occupation_mapped"]) / max(1, res["n_unique"])

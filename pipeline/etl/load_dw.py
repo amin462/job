@@ -227,34 +227,65 @@ def upsert_dw_to_postgres(
         "n_fetched": len(postings),
         "n_failed": 0,
     }
+    reuse_run = bool(run_meta.get("reuse_run", True))
 
     with psycopg.connect(database_url) as conn:
         with conn.cursor() as cur:
-            # 1. Insert scrape_run row for audit trail
-            cur.execute(
-                """
-                insert into staging.scrape_run (source, scope, status, finished_at, n_discovered, n_fetched, n_failed)
-                values (%s, %s, %s, now(), %s, %s, %s)
-                returning scrape_run_id
-                """,
-                (
-                    run_meta["source"],
-                    run_meta.get("scope"),
-                    run_meta.get("status", "done"),
-                    int(run_meta.get("n_discovered", len(postings))),
-                    int(run_meta.get("n_fetched", len(postings))),
-                    int(run_meta.get("n_failed", 0)),
-                ),
-            )
-            scrape_run_id = cur.fetchone()[0]
+            # 1. Reuse or insert scrape_run row for audit trail
+            scrape_run_id: int | None = None
+            if reuse_run and run_meta.get("scope"):
+                cur.execute(
+                    """
+                    select scrape_run_id from staging.scrape_run
+                    where source = %s and scope = %s
+                    order by scrape_run_id desc limit 1
+                    """,
+                    (run_meta["source"], run_meta.get("scope")),
+                )
+                row = cur.fetchone()
+                if row:
+                    scrape_run_id = int(row[0])
+                    cur.execute(
+                        """
+                        update staging.scrape_run
+                        set status = %s, finished_at = now(),
+                            n_discovered = %s, n_fetched = %s, n_failed = %s
+                        where scrape_run_id = %s
+                        """,
+                        (
+                            run_meta.get("status", "done"),
+                            int(run_meta.get("n_discovered", len(postings))),
+                            int(run_meta.get("n_fetched", len(postings))),
+                            int(run_meta.get("n_failed", 0)),
+                            scrape_run_id,
+                        ),
+                    )
+            if scrape_run_id is None:
+                cur.execute(
+                    """
+                    insert into staging.scrape_run (source, scope, status, finished_at, n_discovered, n_fetched, n_failed)
+                    values (%s, %s, %s, now(), %s, %s, %s)
+                    returning scrape_run_id
+                    """,
+                    (
+                        run_meta["source"],
+                        run_meta.get("scope"),
+                        run_meta.get("status", "done"),
+                        int(run_meta.get("n_discovered", len(postings))),
+                        int(run_meta.get("n_fetched", len(postings))),
+                        int(run_meta.get("n_failed", 0)),
+                    ),
+                )
+                scrape_run_id = int(cur.fetchone()[0])
 
-            # 2. Upsert dim_skill & skill_alias
+            # 2. Batch upsert dim_skill & skill_alias
+            skills_list = list(extractor.skills_by_key.values())
             skill_key_by_name: dict[str, int] = {}
-            for rec in extractor.skills_by_key.values():
+            if skills_list:
                 cur.execute(
                     """
                     insert into dw.dim_skill (skill_canonical, skill_slug, skill_name_th, skill_type, skill_group, onet_ref, esco_ref)
-                    values (%s, %s, %s, %s, %s, %s, %s)
+                    select * from unnest(%s::text[], %s::text[], %s::text[], %s::text[], %s::text[], %s::text[], %s::text[])
                     on conflict (skill_canonical) do update set
                       skill_slug    = excluded.skill_slug,
                       skill_name_th = excluded.skill_name_th,
@@ -262,41 +293,58 @@ def upsert_dw_to_postgres(
                       skill_group   = excluded.skill_group,
                       onet_ref      = excluded.onet_ref,
                       esco_ref      = excluded.esco_ref
-                    returning skill_key
+                    returning skill_canonical, skill_key
                     """,
                     (
-                        rec.skill_canonical,
-                        rec.skill_slug,
-                        rec.skill_name_th,
-                        rec.skill_type,
-                        rec.skill_group,
-                        rec.onet_ref,
-                        rec.esco_ref,
+                        [r.skill_canonical for r in skills_list],
+                        [r.skill_slug for r in skills_list],
+                        [r.skill_name_th for r in skills_list],
+                        [r.skill_type for r in skills_list],
+                        [r.skill_group for r in skills_list],
+                        [r.onet_ref for r in skills_list],
+                        [r.esco_ref for r in skills_list],
                     ),
                 )
-                skill_key_by_name[rec.skill_canonical] = cur.fetchone()[0]
-                counts["skills_upserted"] += 1
+                for canonical, sk in cur.fetchall():
+                    skill_key_by_name[str(canonical)] = int(sk)
+                counts["skills_upserted"] = len(skill_key_by_name)
 
             alias_id_by_text: dict[str, int] = {}
+            aliases_dedup: dict[str, tuple[int, str, str | None, str]] = {}
             for ca in extractor.aliases:
-                sk = skill_key_by_name[ca.skill_canonical]
+                aliases_dedup[ca.alias] = (
+                    skill_key_by_name[ca.skill_canonical],
+                    ca.alias,
+                    ca.lang,
+                    ca.match_type,
+                )
+            alias_rows = list(aliases_dedup.values())
+            if alias_rows:
                 cur.execute(
                     """
                     insert into dw.skill_alias (skill_key, alias, lang, match_type, status)
-                    values (%s, %s, %s, %s, 'approved')
+                    select skill_key, alias, lang, match_type, 'approved'
+                    from unnest(%s::int[], %s::text[], %s::text[], %s::text[])
+                      as t(skill_key, alias, lang, match_type)
                     on conflict (alias) do update set
                       skill_key  = excluded.skill_key,
                       lang       = excluded.lang,
                       match_type = excluded.match_type,
                       status     = 'approved'
-                    returning alias_id
+                    returning alias, alias_id
                     """,
-                    (sk, ca.alias, ca.lang, ca.match_type),
+                    (
+                        [r[0] for r in alias_rows],
+                        [r[1] for r in alias_rows],
+                        [r[2] for r in alias_rows],
+                        [r[3] for r in alias_rows],
+                    ),
                 )
-                alias_id_by_text[ca.alias] = cur.fetchone()[0]
-                counts["aliases_upserted"] += 1
+                for al, aid in cur.fetchall():
+                    alias_id_by_text[str(al)] = int(aid)
+                counts["aliases_upserted"] = len(alias_id_by_text)
 
-            # 3. Lookup static dimensions
+            # 3. Lookup static dimensions + upsert any new employment_type
             cur.execute("select source_name, source_key from dw.dim_source")
             source_map = dict(cur.fetchall())
             cur.execute("select level_th, education_key from dw.dim_education")
@@ -306,95 +354,163 @@ def upsert_dw_to_postgres(
             cur.execute("select type_th, employment_type_key from dw.dim_employment_type")
             emp_map = dict(cur.fetchall())
 
-            # 4. Ensure dim_date covers posting dates
+            needed_emp = sorted({str(p.get("employment_type") or "ไม่ระบุ") for p in postings} - set(emp_map.keys()))
+            if needed_emp:
+                cur.execute(
+                    "insert into dw.dim_employment_type (type_th) select * from unnest(%s::text[]) on conflict (type_th) do nothing",
+                    (needed_emp,),
+                )
+                cur.execute("select type_th, employment_type_key from dw.dim_employment_type")
+                emp_map = dict(cur.fetchall())
+
+            # 4. Ensure dim_date covers posting dates (skip already-seeded keys)
+            needed_dates: dict[int, dt.date] = {}
             for p in postings:
                 for d_str in (p.get("date_posted"), p.get("valid_through"), p.get("first_seen_date"), p.get("last_seen_date")):
                     if not d_str:
                         continue
                     dk = date_to_key(d_str)
-                    if dk is not None:
-                        d_obj = dt.date.fromisoformat(d_str[:10])
-                        iso_week = d_obj.isocalendar()
-                        cur.execute(
-                            """
-                            insert into dw.dim_date (date_key, full_date, year, quarter, month, week, day_of_week, is_weekend)
-                            values (%s, %s, %s, %s, %s, %s, %s, %s)
-                            on conflict (date_key) do nothing
-                            """,
-                            (
-                                dk,
-                                d_obj,
-                                d_obj.year,
-                                (d_obj.month - 1) // 3 + 1,
-                                d_obj.month,
-                                iso_week.week,
-                                d_obj.isoweekday(),
-                                d_obj.isoweekday() in (6, 7),
-                            ),
-                        )
+                    if dk is not None and dk not in needed_dates:
+                        needed_dates[dk] = dt.date.fromisoformat(str(d_str)[:10])
+            if needed_dates:
+                cur.execute("select date_key from dw.dim_date where date_key = any(%s)", (list(needed_dates.keys()),))
+                existing_dks = {int(r[0]) for r in cur.fetchall()}
+                missing_dates = [(dk, d_obj) for dk, d_obj in needed_dates.items() if dk not in existing_dks]
+                if missing_dates:
+                    cur.execute(
+                        """
+                        insert into dw.dim_date (date_key, full_date, year, quarter, month, week, day_of_week, is_weekend)
+                        select * from unnest(%s::int[], %s::date[], %s::int[], %s::int[], %s::int[], %s::int[], %s::int[], %s::boolean[])
+                        on conflict (date_key) do nothing
+                        """,
+                        (
+                            [dk for dk, _ in missing_dates],
+                            [d_obj for _, d_obj in missing_dates],
+                            [d_obj.year for _, d_obj in missing_dates],
+                            [(d_obj.month - 1) // 3 + 1 for _, d_obj in missing_dates],
+                            [d_obj.month for _, d_obj in missing_dates],
+                            [d_obj.isocalendar().week for _, d_obj in missing_dates],
+                            [d_obj.isoweekday() for _, d_obj in missing_dates],
+                            [d_obj.isoweekday() in (6, 7) for _, d_obj in missing_dates],
+                        ),
+                    )
 
-            # 5. Upsert dynamic dims and fact rows
+            # 5. Batch upsert dynamic dimensions (location, company, occupation)
+            loc_dedup: dict[tuple[str, str], tuple[str, str, str, str, str, bool]] = {}
+            comp_dedup: dict[str, tuple[str, str | None]] = {}
+            occ_dedup: dict[tuple[str, str], tuple[str, str, str, str, str | None]] = {}
             for p in postings:
-                src_key = source_map.get(p.get("source", "jobthai"), source_map["jobthai"])
-                prov_th = p.get("province_th") or "ไม่ระบุ"
-                dist_th = p.get("district_th") or ""
+                prov_th = str(p.get("province_th") or "ไม่ระบุ")
+                dist_th = str(p.get("district_th") or "")
                 meta = PROVINCE_META.get(prov_th, ("00", "Unspecified", "ไม่ระบุ", False))
+                loc_dedup[(prov_th, dist_th)] = (meta[0], prov_th, meta[1], dist_th, meta[2], meta[3])
+
+                cname = str(p["company_name_norm"])
+                ind = p.get("industry") or None
+                prev_ind = comp_dedup.get(cname, (cname, None))[1]
+                comp_dedup[cname] = (cname, ind or prev_ind)
+
+                occ_key_tuple = (str(p["occupation_cluster"]), str(p["job_title_norm"]))
+                occ_dedup[occ_key_tuple] = (
+                    str(p["occupation_cluster"]),
+                    str(p["occupation_slug"]),
+                    str(p["occupation_name_th"]),
+                    str(p["job_title_norm"]),
+                    p.get("onet_ref") or None,
+                )
+
+            loc_map: dict[tuple[str, str], int] = {}
+            if loc_dedup:
+                lrows = list(loc_dedup.values())
                 cur.execute(
                     """
                     insert into dw.dim_location (province_code, province_th, province_en, district_th, region, is_south14)
-                    values (%s, %s, %s, %s, %s, %s)
+                    select * from unnest(%s::text[], %s::text[], %s::text[], %s::text[], %s::text[], %s::boolean[])
                     on conflict (province_th, district_th) do update set
                       province_code = excluded.province_code,
                       province_en   = excluded.province_en,
                       region        = excluded.region,
                       is_south14    = excluded.is_south14
-                    returning location_key
+                    returning province_th, district_th, location_key
                     """,
-                    (meta[0], prov_th, meta[1], dist_th, meta[2], meta[3]),
+                    tuple([r[i] for r in lrows] for i in range(6)),
                 )
-                loc_key = cur.fetchone()[0]
+                for pth, dth, lk in cur.fetchall():
+                    loc_map[(str(pth), str(dth))] = int(lk)
 
+            comp_map: dict[str, int] = {}
+            if comp_dedup:
+                crows = list(comp_dedup.values())
                 cur.execute(
                     """
                     insert into dw.dim_company (company_name_norm, industry)
-                    values (%s, %s)
+                    select * from unnest(%s::text[], %s::text[])
                     on conflict (company_name_norm) do update set
                       industry = coalesce(excluded.industry, dw.dim_company.industry)
-                    returning company_key
+                    returning company_name_norm, company_key
                     """,
-                    (p["company_name_norm"], p.get("industry")),
+                    ([r[0] for r in crows], [r[1] for r in crows]),
                 )
-                comp_key = cur.fetchone()[0]
+                for cname, ck in cur.fetchall():
+                    comp_map[str(cname)] = int(ck)
 
+            occ_map: dict[tuple[str, str], int] = {}
+            if occ_dedup:
+                orows = list(occ_dedup.values())
                 cur.execute(
                     """
                     insert into dw.dim_occupation (occupation_cluster, occupation_slug, occupation_name_th, job_title_norm, onet_ref)
-                    values (%s, %s, %s, %s, %s)
+                    select * from unnest(%s::text[], %s::text[], %s::text[], %s::text[], %s::text[])
                     on conflict (occupation_cluster, job_title_norm) do update set
                       occupation_slug    = excluded.occupation_slug,
                       occupation_name_th = excluded.occupation_name_th,
                       onet_ref           = excluded.onet_ref
-                    returning occupation_key
+                    returning occupation_cluster, job_title_norm, occupation_key
                     """,
-                    (
-                        p["occupation_cluster"],
-                        p["occupation_slug"],
-                        p["occupation_name_th"],
-                        p["job_title_norm"],
-                        p.get("onet_ref") or None,
-                    ),
+                    tuple([r[i] for r in orows] for i in range(5)),
                 )
-                occ_key = cur.fetchone()[0]
+                for oc, jt, ok in cur.fetchall():
+                    occ_map[(str(oc), str(jt))] = int(ok)
 
-                emp_type = p.get("employment_type") or "ไม่ระบุ"
-                if emp_type not in emp_map:
-                    cur.execute(
-                        "insert into dw.dim_employment_type (type_th) values (%s) on conflict (type_th) do nothing",
-                        (emp_type,),
-                    )
-                    cur.execute("select employment_type_key from dw.dim_employment_type where type_th = %s", (emp_type,))
-                    emp_map[emp_type] = cur.fetchone()[0]
+            # 6. Batch upsert fact_job_posting and fact_posting_skill
+            fact_dedup: dict[tuple[int, str], tuple[Any, ...]] = {}
+            skills_by_posting_id: dict[tuple[int, str], dict[str, str]] = {}
+            for p in postings:
+                src_key = int(source_map.get(p.get("source", "jobthai"), source_map["jobthai"]))
+                sjob_id = str(p["source_job_id"])
+                prov_th = str(p.get("province_th") or "ไม่ระบุ")
+                dist_th = str(p.get("district_th") or "")
+                emp_type = str(p.get("employment_type") or "ไม่ระบุ")
+                fact_dedup[(src_key, sjob_id)] = (
+                    src_key,
+                    sjob_id,
+                    str(p["source_url"]),
+                    str(p["title_short"]),
+                    date_to_key(p.get("date_posted")),
+                    date_to_key(p.get("valid_through")),
+                    loc_map[(prov_th, dist_th)],
+                    comp_map[str(p["company_name_norm"])],
+                    occ_map[(str(p["occupation_cluster"]), str(p["job_title_norm"]))],
+                    edu_map.get(p.get("education_level"), edu_map["ไม่ระบุ"]),
+                    exp_map.get(p.get("experience_band"), exp_map["ไม่ระบุ/ไม่จำเป็น"]),
+                    emp_map[emp_type],
+                    p.get("salary_min"),
+                    p.get("salary_max"),
+                    p.get("salary_mid"),
+                    bool(p.get("salary_open_max")),
+                    p.get("salary_unit_orig"),
+                    int(p.get("n_skills", 0)),
+                    p.get("first_seen_date_key"),
+                    p.get("last_seen_date_key"),
+                    p.get("sample_stratum"),
+                    float(p.get("sample_weight", 1.0)),
+                    scrape_run_id,
+                )
+                skills_by_posting_id[(src_key, sjob_id)] = dict(p.get("matched_aliases") or {})
 
+            posting_key_map: dict[tuple[int, str], int] = {}
+            if fact_dedup:
+                frows = list(fact_dedup.values())
                 cur.execute(
                     """
                     insert into dw.fact_job_posting (
@@ -404,13 +520,14 @@ def upsert_dw_to_postgres(
                       salary_min, salary_max, salary_mid, salary_open_max, salary_unit_orig,
                       n_skills, first_seen_date_key, last_seen_date_key,
                       sample_stratum, sample_weight, scrape_run_id
-                    ) values (
-                      %s, %s, %s, %s,
-                      %s, %s, %s, %s, %s,
-                      %s, %s, %s,
-                      %s, %s, %s, %s, %s,
-                      %s, %s, %s,
-                      %s, %s, %s
+                    )
+                    select * from unnest(
+                      %s::smallint[], %s::text[], %s::text[], %s::text[],
+                      %s::int[], %s::int[], %s::int[], %s::bigint[], %s::int[],
+                      %s::smallint[], %s::smallint[], %s::smallint[],
+                      %s::numeric[], %s::numeric[], %s::numeric[], %s::boolean[], %s::text[],
+                      %s::smallint[], %s::int[], %s::int[],
+                      %s::text[], %s::numeric[], %s::bigint[]
                     )
                     on conflict (source_key, source_job_id) do update set
                       source_url          = excluded.source_url,
@@ -434,92 +551,99 @@ def upsert_dw_to_postgres(
                       sample_stratum      = excluded.sample_stratum,
                       sample_weight       = excluded.sample_weight,
                       scrape_run_id       = excluded.scrape_run_id
-                    returning posting_key
+                    returning source_key, source_job_id, posting_key
                     """,
-                    (
-                        src_key,
-                        p["source_job_id"],
-                        p["source_url"],
-                        p["title_short"],
-                        date_to_key(p.get("date_posted")),
-                        date_to_key(p.get("valid_through")),
-                        loc_key,
-                        comp_key,
-                        occ_key,
-                        edu_map.get(p.get("education_level"), edu_map["ไม่ระบุ"]),
-                        exp_map.get(p.get("experience_band"), exp_map["ไม่ระบุ/ไม่จำเป็น"]),
-                        emp_map[emp_type],
-                        p.get("salary_min"),
-                        p.get("salary_max"),
-                        p.get("salary_mid"),
-                        bool(p.get("salary_open_max")),
-                        p.get("salary_unit_orig"),
-                        int(p.get("n_skills", 0)),
-                        p.get("first_seen_date_key"),
-                        p.get("last_seen_date_key"),
-                        p.get("sample_stratum"),
-                        float(p.get("sample_weight", 1.0)),
-                        scrape_run_id,
-                    ),
+                    tuple([r[i] for r in frows] for i in range(23)),
                 )
-                posting_key = cur.fetchone()[0]
-                counts["postings_upserted"] += 1
+                for sk, sjid, pk in cur.fetchall():
+                    posting_key_map[(int(sk), str(sjid))] = int(pk)
+                counts["postings_upserted"] = len(posting_key_map)
 
-                # Replace bridge skills idempotently for this posting
-                cur.execute("delete from dw.fact_posting_skill where posting_key = %s", (posting_key,))
-                for skill_name, alias_str in (p.get("matched_aliases") or {}).items():
-                    sk = skill_key_by_name.get(skill_name)
-                    if sk is None:
-                        continue
-                    aid = alias_id_by_text.get(alias_str)
+                all_pks = list(posting_key_map.values())
+                cur.execute("delete from dw.fact_posting_skill where posting_key = any(%s::bigint[])", (all_pks,))
+
+                bridge_rows: list[tuple[int, int, int | None]] = []
+                seen_bridge: set[tuple[int, int]] = set()
+                for key_pair, pk in posting_key_map.items():
+                    for skill_name, alias_str in skills_by_posting_id.get(key_pair, {}).items():
+                        sk = skill_key_by_name.get(skill_name)
+                        if sk is None or (pk, sk) in seen_bridge:
+                            continue
+                        seen_bridge.add((pk, sk))
+                        aid = alias_id_by_text.get(alias_str)
+                        bridge_rows.append((pk, sk, aid))
+
+                if bridge_rows:
                     cur.execute(
                         """
                         insert into dw.fact_posting_skill (posting_key, skill_key, match_alias_id)
-                        values (%s, %s, %s)
+                        select * from unnest(%s::bigint[], %s::int[], %s::bigint[])
                         on conflict (posting_key, skill_key) do nothing
                         """,
-                        (posting_key, sk, aid),
+                        (
+                            [r[0] for r in bridge_rows],
+                            [r[1] for r in bridge_rows],
+                            [r[2] for r in bridge_rows],
+                        ),
                     )
 
-            # 6. Insert DQ results
-            for dq in dq_results:
+            # 7. Replace DQ results for this scrape_run_id (idempotent on re-run)
+            if reuse_run:
+                cur.execute("delete from staging.dq_result where scrape_run_id = %s", (scrape_run_id,))
+            if dq_results:
                 cur.execute(
                     """
                     insert into staging.dq_result (scrape_run_id, dimension, check_name, table_name, n_total, n_fail, pass, details)
-                    values (%s, %s, %s, %s, %s, %s, %s, %s)
+                    select * from unnest(%s::bigint[], %s::text[], %s::text[], %s::text[], %s::int[], %s::int[], %s::boolean[], %s::text[])
                     """,
                     (
-                        scrape_run_id,
-                        dq["dimension"],
-                        dq["check_name"],
-                        dq["table_name"],
-                        int(dq["n_total"]),
-                        int(dq["n_fail"]),
-                        bool(dq["pass"]),
-                        dq["details"],
+                        [scrape_run_id] * len(dq_results),
+                        [dq["dimension"] for dq in dq_results],
+                        [dq["check_name"] for dq in dq_results],
+                        [dq["table_name"] for dq in dq_results],
+                        [int(dq["n_total"]) for dq in dq_results],
+                        [int(dq["n_fail"]) for dq in dq_results],
+                        [bool(dq["pass"]) for dq in dq_results],
+                        [dq["details"] for dq in dq_results],
                     ),
                 )
-                counts["dq_inserted"] += 1
+                counts["dq_inserted"] = len(dq_results)
 
-            # 7. Sync pending alias suggestions without creating duplicates
-            for item in pending_aliases:
-                cur.execute(
-                    "select id from public.app_alias_suggestion where alias = %s and status = 'pending' limit 1",
-                    (item["alias"],),
-                )
-                existing = cur.fetchone()
-                if existing:
+            # 8. Sync pending alias suggestions without creating duplicates
+            if pending_aliases:
+                cur.execute("select alias, id from public.app_alias_suggestion where status = 'pending'")
+                existing_pending = {str(al): int(sid) for al, sid in cur.fetchall()}
+                to_update: list[tuple[int, int | None, int]] = []
+                to_insert: list[tuple[str, int | None, int]] = []
+                seen_new_aliases: set[str] = set()
+                for item in pending_aliases:
+                    al = str(item["alias"])
+                    sk_sugg = item.get("suggested_skill_key")
+                    freq = int(item["freq"])
+                    if al in existing_pending:
+                        to_update.append((freq, sk_sugg, existing_pending[al]))
+                    elif al not in seen_new_aliases:
+                        seen_new_aliases.add(al)
+                        to_insert.append((al, sk_sugg, freq))
+
+                if to_update:
                     cur.execute(
-                        "update public.app_alias_suggestion set freq = %s, skill_key = %s where id = %s",
-                        (int(item["freq"]), item.get("suggested_skill_key"), existing[0]),
+                        """
+                        update public.app_alias_suggestion as t
+                        set freq = u.freq, skill_key = u.skill_key
+                        from unnest(%s::int[], %s::int[], %s::bigint[]) as u(freq, skill_key, id)
+                        where t.id = u.id
+                        """,
+                        ([r[0] for r in to_update], [r[1] for r in to_update], [r[2] for r in to_update]),
                     )
-                else:
+                if to_insert:
                     cur.execute(
                         """
                         insert into public.app_alias_suggestion (alias, skill_key, status, freq, sample_context)
-                        values (%s, %s, 'pending', %s, %s)
+                        select alias, skill_key, 'pending', freq, null
+                        from unnest(%s::text[], %s::int[], %s::int[]) as v(alias, skill_key, freq)
                         """,
-                        (item["alias"], item.get("suggested_skill_key"), int(item["freq"]), None),
+                        ([r[0] for r in to_insert], [r[1] for r in to_insert], [r[2] for r in to_insert]),
                     )
         conn.commit()
     return counts
