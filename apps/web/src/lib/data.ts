@@ -54,6 +54,13 @@ function resolveSeedPath(): string | null {
   for (const p of candidates) {
     if (fs.existsSync(/*turbopackIgnore: true*/ p)) return p;
   }
+  if (process.env.VITEST) {
+    const testFallback = path.resolve(
+      process.cwd(),
+      "src/__tests__/fixtures/seed_marts_sample.json"
+    );
+    if (fs.existsSync(/*turbopackIgnore: true*/ testFallback)) return testFallback;
+  }
   return null;
 }
 

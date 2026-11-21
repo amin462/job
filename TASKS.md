@@ -8,7 +8,7 @@
 ---
 
 ## Phase 0 — Setup และข้อตกลง (สัปดาห์ 1)
-- [~] **T0.1 (M)** `git init` + ตั้ง repo (`apps/web`, `pipeline`, `services/ml-api`, `taxonomy`, `supabase/migrations`, `eval`, `models`, `docs`) + `.gitignore` (มีแล้ว) + README (มีแล้ว) · DoD: clone แล้วรันตามคำสั่งได้
+- [x] **T0.1 (M)** `git init` + ตั้ง repo (`apps/web`, `pipeline`, `services/ml-api`, `taxonomy`, `supabase/migrations`, `eval`, `models`, `docs`) + `.gitignore` (มีแล้ว) + README (มีแล้ว) · DoD: clone แล้วรันตามคำสั่งได้
 - [~] **T0.2 (M)** 👤 สร้างโปรเจกต์ Supabase + เก็บ key ใน `.env.local` (ไม่ commit; agent เตรียม `.env.example` และสคริปต์ทดสอบเชื่อมต่อรอไว้) · DoD: ต่อฐานข้อมูลจาก Python และ Next.js ได้
 - [x] **T0.3 (M)** 👤 ขอหนังสืออนุมัติจากอาจารย์ + ร่างอีเมลขออนุญาต JobThai (agent ร่างเอกสารใน `docs/letters/` ให้ครบ ผู้ใช้ส่งจริง) · DoD: ส่งแล้ว เก็บสำเนา
 - [ ] **T0.4 (M)** 👤 ยืนยันคำถามเปิด (จำนวนคน, วันสอบ, เกณฑ์อาจารย์) แล้วปรับ roadmap · DoD: PLAN §11 ถูกตอบ

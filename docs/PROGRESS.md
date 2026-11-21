@@ -9,7 +9,7 @@
 
 - **เวอร์ชันแผน:** `PLAN.md` v4.2 (D1–D19)
 - **git:** commit แรก `753a33a` บน `master` (ยังไม่มี remote) — data/, spike/raw/, spike/out/, design/, .env* ไม่อยู่ใน git
-- **TASKS.md:** `[x]` 27 ข้อ · `[~]` 37 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลัง seed บัญชีเดโม 4 persona งานที่ 7)
+- **TASKS.md:** `[x]` 28 ข้อ · `[~]` 36 ข้อ · `[ ]` 17 ข้อ (อัปเดตล่าสุด 21 พ.ย. หลังปิดงาน `T0.1` clean-clone fixtures งานที่ 8)
 - **Supabase (T0.2):** โปรเจกต์ `smaaunonziebjvfyfuje` (Tokyo) · คีย์อยู่ใน `.env` และ `apps/web/.env.local` (ไม่อยู่ใน git) · Python ต่อผ่าน **Session pooler** ได้แล้ว (host ตรง `db.*.supabase.co` มีแต่ IPv6 เครื่องนี้ต่อไม่ได้) · **ลง migrations `001`–`005` แล้ว** (Postgres 17.12, schema `staging`/`dw`/`mart`/`ml`/`public`, `pg_trgm` v1.6, RLS ครบ 6 ตาราง `app_*`, seed `dim_location` 79 / `dim_date` 1,095)
 - **GitHub:** `https://github.com/amin462/job` (public, ยังว่าง) — ยังไม่ได้ตั้ง remote/push รอผู้ใช้สั่ง
 - **เทสต์ล่าสุด:** `pytest` scraper+import+skills+clean 90 passed (รวมเทสต์ N_h ใหม่ 4 ข้อ) · `test_ml.py` ผ่านเมื่อเช้า (ไม่ได้แก้ไฟล์ ML) · `vitest` 26/26 · `tsc --noEmit` ผ่าน · `npm run build` ผ่าน (26 route)
@@ -56,6 +56,15 @@
 ---
 
 ## 5. บันทึกงานที่ทำเสร็จแล้ว (Changelog)
+
+### 2026-11-21 (ค่ำ) — งานที่ 8: Clean-Clone Fixtures & Skip Guards (T0.1)
+- เพิ่ม synthetic fixtures ที่ตัดข้อความประกาศจริง (`description`/`qualifications`) และ PII ออกใน [pipeline/tests/fixtures/](../pipeline/tests/fixtures/) (`province_totals.csv`, `jobthai_listing_sample.html`, `jobthai_postings/job_900001..900021.html`, `jobbkk_job_sample.html`, `jobbkk_listing_sample.html`, `clean_postings_sample.csv`) และ [apps/web/src/__tests__/fixtures/seed_marts_sample.json](../apps/web/src/__tests__/fixtures/seed_marts_sample.json)
+- อัปเดต [pipeline/tests/test_scraper.py](../pipeline/tests/test_scraper.py), [pipeline/tests/test_skills.py](../pipeline/tests/test_skills.py), และ [pipeline/tests/test_ml.py](../pipeline/tests/test_ml.py) ให้ใช้ `@pytest.mark.skipif` เมื่อไม่มี `spike/raw/` (4 เทสต์ข้ามเมื่อ clean clone) และใช้ synthetic fixtures แทนไฟล์ใน `spike/out/`/`data/`
+- อัปเดต [apps/web/src/lib/data.ts](../apps/web/src/lib/data.ts) (`resolveSeedPath()`) ให้ Vitest fallback ไปใช้ `seed_marts_sample.json` เมื่อยังไม่มี `data/processed/seed_marts.json`, และแก้ไขคำสั่ง Quick Start ใน [README.md](../README.md) (`--app-dir services/ml-api`) ให้รันหลัง clone ได้จริง
+- ทดสอบ:
+  - จำลอง clean-clone (`git archive HEAD` + ไฟล์ Task 8 โดยไม่มี `spike/raw/`, `spike/out/`, `data/`, `.env*`): `pytest pipeline/tests -q -rs` ผ่าน `105 passed, 4 skipped` (และ working tree แบบไม่มีโฟลเดอร์ข้างต้น: `131 passed, 4 skipped`)
+  - บนเครื่องหลัก: `.venv\Scripts\python.exe -X utf8 -m pytest pipeline/tests -q` ได้ `135 passed` และ `apps/web` `npx vitest run` ได้ `6 files, 28 passed`
+- ปิด **`T0.1`** เป็น `[x]`
 
 ### 2026-11-21 (16:00) — โครงสร้างชุดข้อมูลครบ (A+B) + เร่งความเร็ว harvester · Claude
 - **ผู้ใช้สั่ง:** เก็บทุก column ที่เว็บมี ตัดเฉพาะข้อมูลส่วนบุคคล (PDPA) และแปลงเป็น feature ให้ครบ — เอกสาร **[docs/data-dictionary.md](data-dictionary.md)** อธิบายทุก column (ที่มา, ครอบคลุม, ใช้ทำอะไร, ห้ามใช้อะไร)

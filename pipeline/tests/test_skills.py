@@ -6,6 +6,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -76,6 +78,12 @@ def test_word_boundaries_and_false_positive_guards():
     assert "Heavy Truck Licence (ท.2/บ.2)" in ext.extract_skills("มีใบอนุญาตขับขี่ ท.2 หรือ บ.2")
 
 
+SPIKE_SAMPLE_DIR = REPO_ROOT / "spike" / "raw" / "jobthai" / "sample"
+FIXTURE_POSTINGS_DIR = REPO_ROOT / "pipeline" / "tests" / "fixtures" / "jobthai_postings"
+FIXTURE_PROVINCE_TOTALS = REPO_ROOT / "pipeline" / "tests" / "fixtures" / "province_totals.csv"
+
+
+@pytest.mark.skipif(not SPIKE_SAMPLE_DIR.exists(), reason="spike/raw/jobthai not present in clean git clone")
 def test_pipeline_end_to_end_on_131_sample_postings(tmp_path):
     res = run_pipeline(
         raw_dirs=[
@@ -149,6 +157,29 @@ def test_pipeline_end_to_end_on_131_sample_postings(tmp_path):
             assert row["is_suppressed"] is True
             assert row["weighted_share"] is None
             assert row["raw_share"] is None
+
+
+def test_pipeline_end_to_end_on_fixtures(tmp_path):
+    res = run_pipeline(
+        raw_dirs=[FIXTURE_POSTINGS_DIR],
+        out_dir=tmp_path / "processed",
+        province_totals_csv=FIXTURE_PROVINCE_TOTALS,
+        dq_report_path=tmp_path / "dq-report.md",
+        strata_csv=None,
+    )
+    postings = res["postings"]
+    assert res["n_files"] == 21
+    assert res["n_failed"] == 0
+    assert len(postings) == 21
+    assert all(p["n_skills"] >= 1 for p in postings)
+    assert all(d["pass"] for d in res["dq_results"])
+
+    marts = json.loads(Path(res["seed_json"]).read_text(encoding="utf-8"))
+    for key in ("public_summary", "skill_demand_weekly", "occupation_skill_profile", "salary_stats", "top_links"):
+        assert key in marts
+    for link in marts["top_links"]:
+        assert not (set(link.keys()) & FORBIDDEN_PUBLIC_TEXT_COLUMNS)
+        assert link["n_postings"] >= 5
 
 
 def test_dq_compliance_flags_forbidden_columns():

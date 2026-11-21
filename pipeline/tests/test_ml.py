@@ -174,6 +174,8 @@ def _make_synthetic_postings(n_companies: int = 8, rows_per_company: int = 6) ->
 
 def test_features_filters_salary_and_excludes_forbidden_columns():
     clean_csv = REPO_ROOT / "data" / "processed" / "clean_postings.csv"
+    if not clean_csv.exists():
+        clean_csv = REPO_ROOT / "pipeline" / "tests" / "fixtures" / "clean_postings_sample.csv"
     df = pd.read_csv(clean_csv)
     ds = build_feature_matrix(df)
 

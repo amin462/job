@@ -73,17 +73,18 @@ Copy-Item .env.example .env
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r pipeline/requirements.txt
-pytest pipeline/tests
+py -X utf8 -m pytest pipeline/tests
 ```
 
 ### 4.3 เว็บแอปพลิเคชัน (Next.js)
 ```powershell
 cd apps/web
 npm install
+npx vitest run
 npm run dev
 ```
 
 ### 4.4 บริการทำนายเงินเดือน (FastAPI Champion Service)
 ```powershell
-.\.venv\Scripts\uvicorn services.ml-api.main:app --reload --port 8000
+.\.venv\Scripts\python.exe -m uvicorn main:app --app-dir services/ml-api --reload --port 8000
 ```

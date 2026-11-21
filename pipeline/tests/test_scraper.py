@@ -47,6 +47,15 @@ BY_PROVINCE_DIR = REPO_ROOT / "spike" / "raw" / "jobthai" / "by_province"
 PROVINCE_TOTALS_CSV = BY_PROVINCE_DIR / "province_totals.csv"
 PROV_TEST_HTML = REPO_ROOT / "spike" / "raw" / "jobthai" / "prov_test.html"
 JOBS_LIST_P1_HTML = REPO_ROOT / "spike" / "raw" / "jobthai" / "jobs_list_p1.html"
+JOBBKK_SAMPLE_HTML = REPO_ROOT / "spike" / "raw" / "jobbkk" / "job_sample.html"
+JOBBKK_SOUTH_HTML = REPO_ROOT / "spike" / "raw" / "jobbkk" / "region_south.html"
+
+FIXTURES_DIR = REPO_ROOT / "pipeline" / "tests" / "fixtures"
+FIXTURE_POSTINGS_DIR = FIXTURES_DIR / "jobthai_postings"
+FIXTURE_LISTING_HTML = FIXTURES_DIR / "jobthai_listing_sample.html"
+FIXTURE_PROVINCE_TOTALS_CSV = FIXTURES_DIR / "province_totals.csv"
+FIXTURE_JOBBKK_SAMPLE_HTML = FIXTURES_DIR / "jobbkk_job_sample.html"
+FIXTURE_JOBBKK_LISTING_HTML = FIXTURES_DIR / "jobbkk_listing_sample.html"
 
 _EMAIL_CHECK_RX = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 _PHONE_CHECK_RX = re.compile(
@@ -137,6 +146,7 @@ def test_delay_below_5_seconds_refused(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(not SAMPLE_DIR.exists(), reason="spike/raw/jobthai not present in clean git clone")
 def test_parse_at_least_20_real_jobthai_html_files() -> None:
     sample_files = sorted(SAMPLE_DIR.glob("job_*.html"))
     province_files = sorted(BY_PROVINCE_DIR.glob("job_*.html"))
@@ -195,6 +205,22 @@ def test_parse_at_least_20_real_jobthai_html_files() -> None:
                 assert not _EMAIL_CHECK_RX.search(s), f"Email in payload {fpath.name}: {s}"
                 assert not _PHONE_CHECK_RX.search(s), f"Phone in payload {fpath.name}: {s}"
                 assert not _LINE_CHECK_RX.search(s), f"LINE ID in payload {fpath.name}: {s}"
+
+
+def test_parse_at_least_20_synthetic_fixture_html_files() -> None:
+    files = sorted(FIXTURE_POSTINGS_DIR.glob("job_*.html"))
+    assert len(files) >= 20
+    for fpath in files:
+        rec = parse_file(fpath)
+        assert rec is not None, f"Failed to parse {fpath.name}"
+        assert rec["source"] == "jobthai"
+        assert rec["source_job_id"].isdigit()
+        assert not (_collect_all_keys(rec) & HR_CONTACT_KEYS)
+        for field in ("title", "description", "qualifications", "salary_text", "company_name"):
+            val = rec[field] or ""
+            assert not _EMAIL_CHECK_RX.search(val)
+            assert not _PHONE_CHECK_RX.search(val)
+            assert not _LINE_CHECK_RX.search(val)
 
 
 def test_parse_strips_all_hr_keys_and_inline_pii_from_ld_json() -> None:
@@ -356,9 +382,11 @@ def test_fetch_halts_immediately_on_block_or_captcha(
 
 
 def test_discovery_extracts_real_listing_html_and_category_targets(tmp_path: Path) -> None:
-    html = PROV_TEST_HTML.read_text(encoding="utf-8", errors="ignore")
+    listing_path = PROV_TEST_HTML if PROV_TEST_HTML.exists() else FIXTURE_LISTING_HTML
+    expected_total = 4991 if PROV_TEST_HTML.exists() else 120
+    html = listing_path.read_text(encoding="utf-8", errors="ignore")
     parsed = extract_listing_ids(html, stratum="p=59", seen_date="2026-11-18")
-    assert parsed["total"] == 4991
+    assert parsed["total"] == expected_total
     assert len(parsed["job_ids"]) == 20
     assert len(parsed["records"]) == 20
     assert parsed["records"][0]["stratum"] == "p=59"
@@ -520,7 +548,8 @@ def test_playwright_scroll_listing_uses_valid_selectors_offline(monkeypatch: pyt
 
 
 def test_quota_stratification_and_exact_weight_conservation() -> None:
-    strata = load_province_totals(PROVINCE_TOTALS_CSV)
+    totals_csv = PROVINCE_TOTALS_CSV if PROVINCE_TOTALS_CSV.exists() else FIXTURE_PROVINCE_TOTALS_CSV
+    strata = load_province_totals(totals_csv)
     assert len(strata) == len(JOBTHAI_PROVINCES) == 79
     assert {r["code"] for r in strata} == set(JOBTHAI_PROVINCES.keys())
 
@@ -571,6 +600,27 @@ def test_quota_stratification_and_exact_weight_conservation() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_load_staging_deduplication_fixtures(tmp_path: Path) -> None:
+    db_path = tmp_path / "staging_fix.db"
+    jsonl_path = tmp_path / "staging_fix.jsonl"
+    store = StagingStore(sqlite_path=db_path)
+    try:
+        first = load_raw_directory([FIXTURE_POSTINGS_DIR], store=store, jsonl_out=jsonl_path)
+        second = load_raw_directory([FIXTURE_POSTINGS_DIR], store=store)
+        total_in_db = store.count_job_postings("jobthai")
+    finally:
+        store.close()
+
+    assert first["files_scanned"] == 21
+    assert first["parsed"] == 21
+    assert first["inserted"] == 21
+    assert second["inserted"] == 0
+    assert second["duplicates"] == 21
+    assert total_in_db == 21
+    assert jsonl_path.exists()
+
+
+@pytest.mark.skipif(not SAMPLE_DIR.exists(), reason="spike/raw/jobthai not present in clean git clone")
 def test_load_staging_deduplication(tmp_path: Path) -> None:
     db_path = tmp_path / "staging.db"
     jsonl_path = tmp_path / "staging_clean.jsonl"
@@ -621,7 +671,8 @@ def test_load_staging_deduplication(tmp_path: Path) -> None:
 def test_weekly_rediscovery_updates_last_seen_without_refetching(tmp_path: Path) -> None:
     raw_dir = tmp_path / "raw"
     raw_dir.mkdir()
-    listing_week1 = PROV_TEST_HTML.read_text(encoding="utf-8", errors="ignore")
+    listing_path = PROV_TEST_HTML if PROV_TEST_HTML.exists() else FIXTURE_LISTING_HTML
+    listing_week1 = listing_path.read_text(encoding="utf-8", errors="ignore")
     week1_parsed = extract_listing_ids(listing_week1, stratum="p=59")
     week1_ids = week1_parsed["job_ids"]
     assert len(week1_ids) == 20
@@ -726,6 +777,7 @@ def test_weekly_rediscovery_updates_last_seen_without_refetching(tmp_path: Path)
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(not JOBBKK_SAMPLE_HTML.exists(), reason="spike/raw/jobbkk not present in clean git clone")
 def test_jobbkk_parse_real_sample_and_scrubs_pii() -> None:
     from pipeline.scraper.config import USER_AGENT
 
@@ -749,15 +801,27 @@ def test_jobbkk_parse_real_sample_and_scrubs_pii() -> None:
     assert not (_collect_all_keys(rec) & HR_CONTACT_KEYS)
 
 
+def test_jobbkk_parse_synthetic_fixture_and_scrubs_pii() -> None:
+    rec = parse_file(FIXTURE_JOBBKK_SAMPLE_HTML, source="jobbkk")
+    assert rec is not None
+    assert rec["source"] == "jobbkk"
+    assert rec["source_job_id"] == "1110990"
+    assert rec["province"] == "สมุทรปราการ"
+    assert rec["salary_min"] == 20000.0
+    serialized = json.dumps(rec, ensure_ascii=False)
+    for leaked in ("081-000-0000", "fake@example.com", "hr@example.com", "@fakeid", "02-000-0000"):
+        assert leaked not in serialized
+    assert not (_collect_all_keys(rec) & HR_CONTACT_KEYS)
+
+
 def test_jobbkk_listing_extraction_and_schedule() -> None:
     from pipeline.scraper.jobbkk_harvest import (
         build_jobbkk_schedule,
         extract_jobbkk_listing_targets,
     )
 
-    south_html = (REPO_ROOT / "spike" / "raw" / "jobbkk" / "region_south.html").read_text(
-        encoding="utf-8", errors="ignore"
-    )
+    south_path = JOBBKK_SOUTH_HTML if JOBBKK_SOUTH_HTML.exists() else FIXTURE_JOBBKK_LISTING_HTML
+    south_html = south_path.read_text(encoding="utf-8", errors="ignore")
     parsed = extract_jobbkk_listing_targets(south_html, stratum="jobbkk|region=southern", seen_date="2026-11-18")
     assert len(parsed["targets"]) == 9
     assert parsed["targets"][0]["detail_url"].startswith("https://www.jobbkk.com/jobs/detail/")
@@ -771,12 +835,10 @@ def test_jobbkk_listing_extraction_and_schedule() -> None:
 def test_jobbkk_harvest_polite_delay_resume_and_jsonl_logs(tmp_path: Path) -> None:
     from pipeline.scraper.jobbkk_harvest import run_jobbkk_batch
 
-    south_html = (REPO_ROOT / "spike" / "raw" / "jobbkk" / "region_south.html").read_text(
-        encoding="utf-8", errors="ignore"
-    )
-    sample_html = (REPO_ROOT / "spike" / "raw" / "jobbkk" / "job_sample.html").read_text(
-        encoding="utf-8", errors="ignore"
-    )
+    south_path = JOBBKK_SOUTH_HTML if JOBBKK_SOUTH_HTML.exists() else FIXTURE_JOBBKK_LISTING_HTML
+    sample_path = JOBBKK_SAMPLE_HTML if JOBBKK_SAMPLE_HTML.exists() else FIXTURE_JOBBKK_SAMPLE_HTML
+    south_html = south_path.read_text(encoding="utf-8", errors="ignore")
+    sample_html = sample_path.read_text(encoding="utf-8", errors="ignore")
 
     # Delay < 5.0 must be refused
     with pytest.raises(ValueError):
@@ -846,12 +908,10 @@ def test_jobbkk_harvest_halts_immediately_on_block_or_captcha(
 ) -> None:
     from pipeline.scraper.jobbkk_harvest import run_jobbkk_batch
 
-    south_html = (REPO_ROOT / "spike" / "raw" / "jobbkk" / "region_south.html").read_text(
-        encoding="utf-8", errors="ignore"
-    )
-    sample_html = (REPO_ROOT / "spike" / "raw" / "jobbkk" / "job_sample.html").read_text(
-        encoding="utf-8", errors="ignore"
-    )
+    south_path = JOBBKK_SOUTH_HTML if JOBBKK_SOUTH_HTML.exists() else FIXTURE_JOBBKK_LISTING_HTML
+    sample_path = JOBBKK_SAMPLE_HTML if JOBBKK_SAMPLE_HTML.exists() else FIXTURE_JOBBKK_SAMPLE_HTML
+    south_html = south_path.read_text(encoding="utf-8", errors="ignore")
+    sample_html = sample_path.read_text(encoding="utf-8", errors="ignore")
 
     requested_urls: list[str] = []
     sleeps: list[float] = []
